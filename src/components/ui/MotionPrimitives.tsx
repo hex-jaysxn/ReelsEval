@@ -72,15 +72,14 @@ export function useMotionProfile(): MotionProfile {
     };
   }, []);
 
-  return useMemo(
-    () =>
-      computeMotionProfile({
-        reducedMotion,
-        viewportWidth,
-        coarsePointer,
-      }),
-    [reducedMotion, viewportWidth, coarsePointer]
-  );
+  return useMemo(() => {
+    const next = computeMotionProfile({
+      reducedMotion,
+      viewportWidth,
+      coarsePointer,
+    });
+    return next;
+  }, [reducedMotion, viewportWidth, coarsePointer]);
 }
 
 export function ScrollProgressBar() {

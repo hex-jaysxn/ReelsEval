@@ -117,7 +117,6 @@ export interface ReelEvaluation {
   developmentRecommendations: DevelopmentRecommendation[];
   predictedAudienceResponse: AudienceSegmentPrediction[];
   marketingStrategyRecommendations: MarketingStrategyItem[];
-  researchRecommendations: string[];
 }
 
 export interface ApiErrorPayload {

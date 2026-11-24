@@ -212,11 +212,6 @@ const evaluationResponseSchema = {
         required: ['pillar', 'recommendation', 'researchRationale', 'executionStep'],
       },
     },
-    researchRecommendations: {
-      type: Type.ARRAY,
-      items: { type: Type.STRING },
-      description: '3-4 research experiments, A/B tests, or KPI tracking recommendations.',
-    },
   },
   required: [
     'executiveSummary',
@@ -226,7 +221,6 @@ const evaluationResponseSchema = {
     'developmentRecommendations',
     'predictedAudienceResponse',
     'marketingStrategyRecommendations',
-    'researchRecommendations',
   ],
 };
 
@@ -489,7 +483,7 @@ Provide:
 - Areas for Improvement identifying the lowest-scoring characteristics and engagement dimensions.
 - Specific Development Recommendations for the content creator or business owner.
 - Predicted Audience Response across Business Owners, Gen Z Consumers, Social Media Content Creators, and Marketing Professionals.
-- Marketing Strategy and Research Recommendations.`;
+- Marketing Strategy Recommendations.`;
 
   let uploadedFileName: string | undefined;
 
@@ -625,7 +619,6 @@ Provide:
       developmentRecommendations: DevelopmentRecommendation[];
       predictedAudienceResponse: AudienceSegmentPrediction[];
       marketingStrategyRecommendations: MarketingStrategyItem[];
-      researchRecommendations: string[];
     };
 
     try {
@@ -705,9 +698,6 @@ Provide:
       })),
       marketingStrategyRecommendations: Array.isArray(parsed.marketingStrategyRecommendations)
         ? parsed.marketingStrategyRecommendations
-        : [],
-      researchRecommendations: Array.isArray(parsed.researchRecommendations)
-        ? parsed.researchRecommendations
         : [],
     };
   } catch (err) {

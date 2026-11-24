@@ -4,7 +4,6 @@ import {
   CheckCircle2,
   Compass,
   Info,
-  Lightbulb,
   Users,
 } from 'lucide-react';
 import type { AudienceSegmentPrediction, ReelEvaluation } from '../types/evaluation.ts';
@@ -44,7 +43,6 @@ export function InsightsAndStrategy({ evaluation }: InsightsAndStrategyProps) {
     developmentRecommendations,
     predictedAudienceResponse,
     marketingStrategyRecommendations,
-    researchRecommendations,
   } = evaluation;
 
   return (
@@ -171,55 +169,31 @@ export function InsightsAndStrategy({ evaluation }: InsightsAndStrategyProps) {
         </div>
       </section>
 
-      {/* Marketing Strategy & Research Recommendations */}
+      {/* Marketing Strategy Recommendations */}
       <section
-        aria-label="Marketing Strategy and Research Recommendations"
-        className="grid grid-cols-1 lg:grid-cols-3 gap-6"
+        aria-label="Marketing Strategy Recommendations"
+        className="bg-white border border-slate-200 rounded-xl p-6"
       >
-        <div className="lg:col-span-2 bg-white border border-slate-200 rounded-xl p-6">
-          <div className="flex items-center gap-2 mb-4">
-            <Compass className="h-4 w-4 text-indigo-600 shrink-0" aria-hidden="true" />
-            <h3 className="font-display text-base font-semibold text-slate-900">
-              Marketing Strategy Recommendations
-            </h3>
-          </div>
-
-          <div className="divide-y divide-slate-100">
-            {marketingStrategyRecommendations.map((item, idx) => (
-              <div key={idx} className="py-4 first:pt-1 last:pb-1">
-                <p className="text-xs font-semibold text-indigo-700">{item.pillar}</p>
-                <p className="mt-1 text-sm font-medium text-slate-900">{item.recommendation}</p>
-                <p className="mt-1.5 text-xs text-slate-600 leading-relaxed">
-                  {item.researchRationale}
-                </p>
-                <p className="mt-1.5 text-xs text-slate-500">
-                  Next Step: <span className="font-medium text-slate-800">{item.executionStep}</span>
-                </p>
-              </div>
-            ))}
-          </div>
+        <div className="flex items-center gap-2 mb-4">
+          <Compass className="h-4 w-4 text-indigo-600 shrink-0" aria-hidden="true" />
+          <h3 className="font-display text-base font-semibold text-slate-900">
+            Marketing Strategy Recommendations
+          </h3>
         </div>
 
-        <div className="bg-white border border-slate-200 rounded-xl p-6">
-          <div className="flex items-center gap-2 mb-4">
-            <Lightbulb className="h-4 w-4 text-indigo-600 shrink-0" aria-hidden="true" />
-            <h3 className="font-display text-base font-semibold text-slate-900">
-              Research Recommendations
-            </h3>
-          </div>
-          <ul className="space-y-3.5">
-            {researchRecommendations.map((rec, idx) => (
-              <li
-                key={idx}
-                className="text-sm text-slate-700 leading-relaxed pb-3.5 border-b border-slate-100 last:border-b-0 last:pb-0"
-              >
-                <span className="font-mono text-xs font-semibold text-indigo-600 mr-2">
-                  0{idx + 1}.
-                </span>
-                {rec}
-              </li>
-            ))}
-          </ul>
+        <div className="divide-y divide-slate-100">
+          {marketingStrategyRecommendations.map((item, idx) => (
+            <div key={idx} className="py-4 first:pt-1 last:pb-1">
+              <p className="text-xs font-semibold text-indigo-700">{item.pillar}</p>
+              <p className="mt-1 text-sm font-medium text-slate-900">{item.recommendation}</p>
+              <p className="mt-1.5 text-xs text-slate-600 leading-relaxed">
+                {item.researchRationale}
+              </p>
+              <p className="mt-1.5 text-xs text-slate-500">
+                Next Step: <span className="font-medium text-slate-800">{item.executionStep}</span>
+              </p>
+            </div>
+          ))}
         </div>
       </section>
 

@@ -230,7 +230,6 @@ test('buildReportMarkdown outputs 4x3 rubric matrix and 16.33 / 20 example clean
         executionStep: 'Create a 3-part commuter series.',
       },
     ],
-    researchRecommendations: ['Compare participation rate before and after adding stitch prompts.'],
   };
 
   const md = buildReportMarkdown(sample);

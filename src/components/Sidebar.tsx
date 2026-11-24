@@ -1,7 +1,8 @@
-import { BarChart3, BookOpen, Clock, Film, X } from 'lucide-react';
+import { BarChart3, BookOpen, Clock, Film, LogOut, Settings, X } from 'lucide-react';
+import type { AuthUser } from '../types/auth.ts';
 import type { ReelEvaluation } from '../types/evaluation.ts';
 
-export type ActiveTab = 'evaluator' | 'history' | 'methodology';
+export type ActiveTab = 'evaluator' | 'history' | 'methodology' | 'settings';
 
 interface SidebarProps {
   activeTab: ActiveTab;
@@ -11,6 +12,8 @@ interface SidebarProps {
   onSelectHistoryItem: (evaluation: ReelEvaluation) => void;
   mobileOpen: boolean;
   onCloseMobile: () => void;
+  user: AuthUser;
+  onLogout: () => void;
 }
 
 export function Sidebar({
@@ -21,11 +24,14 @@ export function Sidebar({
   onSelectHistoryItem,
   mobileOpen,
   onCloseMobile,
+  user,
+  onLogout,
 }: SidebarProps) {
   const navItems: { id: ActiveTab; label: string; icon: typeof Film; count?: number }[] = [
     { id: 'evaluator', label: 'Video Evaluator', icon: Film },
     { id: 'history', label: 'Evaluation History', icon: Clock, count: history.length },
     { id: 'methodology', label: 'Scoring Rubric', icon: BookOpen },
+    { id: 'settings', label: 'Account Settings', icon: Settings },
   ];
 
   const sidebarContent = (
@@ -143,11 +149,46 @@ export function Sidebar({
         )}
       </div>
 
-      <div className="p-4 border-t border-slate-200 bg-slate-50/70">
-        <p className="text-xs font-medium text-slate-700">Gemini Free Tier Mode</p>
-        <p className="mt-1 text-xs text-slate-500 leading-relaxed">
-          Optimized multimodal evaluation up to 45 MB per clip using the 4×3 rubric matrix (8.00–20.00).
-        </p>
+      <div className="p-4 border-t border-slate-200 bg-slate-50/70 space-y-3">
+        <div className="flex items-center justify-between gap-2">
+          <button
+            type="button"
+            onClick={() => {
+              onSelectTab('settings');
+              onCloseMobile();
+            }}
+            className="flex items-center gap-2.5 min-w-0 text-left group"
+          >
+            {user.avatarUrl ? (
+              <img
+                src={user.avatarUrl}
+                alt={user.name}
+                className="h-8 w-8 rounded-full border border-slate-200 object-cover shrink-0"
+                referrerPolicy="no-referrer"
+              />
+            ) : (
+              <span className="h-8 w-8 rounded-full bg-indigo-100 text-indigo-700 font-display text-xs font-bold flex items-center justify-center shrink-0">
+                {user.name.slice(0, 2).toUpperCase()}
+              </span>
+            )}
+            <span className="min-w-0">
+              <span className="block text-xs font-semibold text-slate-800 truncate group-hover:text-indigo-700">
+                {user.name}
+              </span>
+              <span className="block text-[11px] text-slate-500 truncate">{user.email}</span>
+            </span>
+          </button>
+
+          <button
+            type="button"
+            onClick={onLogout}
+            aria-label="Sign out"
+            title="Sign out"
+            className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 hover:text-slate-900 hover:bg-slate-100 shrink-0"
+          >
+            <LogOut className="h-3.5 w-3.5" aria-hidden="true" />
+          </button>
+        </div>
       </div>
     </div>
   );

@@ -1,17 +1,12 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { AlertCircle, Menu, PlusCircle, RefreshCw } from 'lucide-react';
+import type { AuthProviderAvailability, AuthUser } from './types/auth.ts';
 import type {
   EvaluationContext,
   ReelEvaluation,
   ReelVideoMetadata,
 } from './types/evaluation.ts';
 import { parseEvaluationApiResponse } from './utils/evaluationLogic.ts';
-import {
-  deleteEvaluationFromHistory,
-  clearEvaluationHistory,
-  loadEvaluationHistory,
-  saveEvaluationToHistory,
-} from './utils/historyStorage.ts';
 import { Sidebar, type ActiveTab } from './components/Sidebar.tsx';
 import { UploadStage } from './components/UploadStage.tsx';
 import { ProcessingState } from './components/ProcessingState.tsx';
@@ -22,8 +17,25 @@ import { CategoryScoreCards } from './components/CategoryScoreCards.tsx';
 import { InsightsAndStrategy } from './components/InsightsAndStrategy.tsx';
 import { HistoryView } from './components/HistoryView.tsx';
 import { MethodologyView } from './components/MethodologyView.tsx';
+import { AuthPage } from './components/AuthPage.tsx';
+import { AccountSettingsView } from './components/AccountSettingsView.tsx';
 
 export default function App() {
+  const [authUser, setAuthUser] = useState<AuthUser | null>(null);
+  const [sessionToken, setSessionToken] = useState<string | null>(null);
+  const [authLoading, setAuthLoading] = useState(true);
+  const [providerAvailability, setProviderAvailability] =
+    useState<AuthProviderAvailability | null>(null);
+
+  const [initialParams] = useState(() => {
+    const params = new URLSearchParams(window.location.search);
+    return {
+      resetToken: params.get('resetToken'),
+      oauthHandoff: params.get('oauthHandoff'),
+      authError: params.get('authError'),
+    };
+  });
+
   const [activeTab, setActiveTab] = useState<ActiveTab>('evaluator');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
@@ -46,7 +58,92 @@ export default function App() {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
 
   const [activeEvaluation, setActiveEvaluation] = useState<ReelEvaluation | null>(null);
-  const [history, setHistory] = useState<ReelEvaluation[]>(() => loadEvaluationHistory());
+  const [history, setHistory] = useState<ReelEvaluation[]>([]);
+
+  const loadUserEvaluations = useCallback(
+    async (tokenOverride?: string | null) => {
+      const headers: Record<string, string> = { Accept: 'application/json' };
+      const effectiveToken = tokenOverride !== undefined ? tokenOverride : sessionToken;
+      if (effectiveToken) {
+        headers.Authorization = `Bearer ${effectiveToken}`;
+      }
+      try {
+        const res = await fetch('/api/evaluations', {
+          credentials: 'same-origin',
+          headers,
+        });
+        const data = (await res.json().catch(() => null)) as {
+          evaluations?: ReelEvaluation[];
+        } | null;
+        if (res.ok && Array.isArray(data?.evaluations)) {
+          setHistory(data.evaluations);
+        }
+      } catch {
+        // Ignore transient history load error
+      }
+    },
+    [sessionToken]
+  );
+
+  useEffect(() => {
+    let active = true;
+
+    async function bootstrapAuth() {
+      try {
+        const providersRes = await fetch('/api/auth/providers', {
+          credentials: 'same-origin',
+        });
+        const providersData = (await providersRes.json().catch(() => null)) as
+          | AuthProviderAvailability
+          | null;
+        if (active && providersData) {
+          setProviderAvailability(providersData);
+        }
+
+        if (initialParams.oauthHandoff) {
+          const handoffRes = await fetch('/api/auth/oauth/complete', {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: {
+              'Content-Type': 'application/json',
+              Accept: 'application/json',
+              'X-Requested-With': 'ReelsEvaluator',
+            },
+            body: JSON.stringify({ handoffCode: initialParams.oauthHandoff }),
+          });
+          const handoffData = (await handoffRes.json().catch(() => null)) as {
+            user?: AuthUser;
+            sessionToken?: string;
+          } | null;
+          window.history.replaceState({}, '', '/');
+          if (active && handoffRes.ok && handoffData?.user) {
+            setAuthUser(handoffData.user);
+            setSessionToken(handoffData.sessionToken ?? null);
+            await loadUserEvaluations(handoffData.sessionToken ?? null);
+            return;
+          }
+        }
+
+        const meRes = await fetch('/api/auth/me', { credentials: 'same-origin' });
+        const meData = (await meRes.json().catch(() => null)) as {
+          user?: AuthUser | null;
+        } | null;
+        if (active && meData?.user) {
+          setAuthUser(meData.user);
+          await loadUserEvaluations(null);
+        }
+      } finally {
+        if (active) {
+          setAuthLoading(false);
+        }
+      }
+    }
+
+    bootstrapAuth();
+    return () => {
+      active = false;
+    };
+  }, [initialParams.oauthHandoff, loadUserEvaluations]);
 
   useEffect(() => {
     return () => {
@@ -55,6 +152,38 @@ export default function App() {
       }
     };
   }, [previewUrl]);
+
+  function handleAuthenticated(user: AuthUser, token?: string) {
+    setAuthUser(user);
+    setSessionToken(token ?? null);
+    setActiveTab('evaluator');
+    loadUserEvaluations(token ?? null);
+  }
+
+  async function handleLogout() {
+    const headers: Record<string, string> = {
+      Accept: 'application/json',
+      'X-Requested-With': 'ReelsEvaluator',
+    };
+    if (sessionToken) {
+      headers.Authorization = `Bearer ${sessionToken}`;
+    }
+    try {
+      await fetch('/api/auth/logout', {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers,
+      });
+    } catch {
+      // Proceed with local state reset
+    }
+    setAuthUser(null);
+    setSessionToken(null);
+    setActiveEvaluation(null);
+    setHistory([]);
+    setApiError(null);
+    setActiveTab('evaluator');
+  }
 
   function handleFileSelected(file: File, meta: ReelVideoMetadata, url: string) {
     if (previewUrl) {
@@ -118,13 +247,19 @@ export default function App() {
         formData.append('height', String(videoMetadata.height));
       }
 
+      const headers: Record<string, string> = {
+        Accept: 'application/json',
+        'X-Requested-With': 'ReelsEvaluator',
+      };
+      if (sessionToken) {
+        headers.Authorization = `Bearer ${sessionToken}`;
+      }
+
       const response = await fetch('/api/evaluate', {
         method: 'POST',
         body: formData,
         credentials: 'same-origin',
-        headers: {
-          Accept: 'application/json',
-        },
+        headers,
       });
 
       const rawBody = await response.text();
@@ -143,8 +278,7 @@ export default function App() {
 
       const evaluation = parsed.evaluation;
       setActiveEvaluation(evaluation);
-      const updatedHistory = saveEvaluationToHistory(evaluation);
-      setHistory(updatedHistory);
+      setHistory((prev) => [evaluation, ...prev.filter((item) => item.id !== evaluation.id)].slice(0, 30));
     } catch (err) {
       setApiError({
         code: 'NETWORK_ERROR',
@@ -158,6 +292,61 @@ export default function App() {
     }
   }
 
+  async function handleDeleteEvaluation(id: string) {
+    const headers: Record<string, string> = {
+      Accept: 'application/json',
+      'X-Requested-With': 'ReelsEvaluator',
+    };
+    if (sessionToken) headers.Authorization = `Bearer ${sessionToken}`;
+
+    await fetch(`/api/evaluations/${encodeURIComponent(id)}`, {
+      method: 'DELETE',
+      credentials: 'same-origin',
+      headers,
+    }).catch(() => null);
+
+    setHistory((prev) => prev.filter((item) => item.id !== id));
+    if (activeEvaluation?.id === id) {
+      setActiveEvaluation(null);
+    }
+  }
+
+  async function handleClearHistory() {
+    const headers: Record<string, string> = {
+      Accept: 'application/json',
+      'X-Requested-With': 'ReelsEvaluator',
+    };
+    if (sessionToken) headers.Authorization = `Bearer ${sessionToken}`;
+
+    await fetch('/api/evaluations', {
+      method: 'DELETE',
+      credentials: 'same-origin',
+      headers,
+    }).catch(() => null);
+
+    setHistory([]);
+    setActiveEvaluation(null);
+  }
+
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center p-6">
+        <div className="text-sm font-medium text-slate-500">Loading workspace...</div>
+      </div>
+    );
+  }
+
+  if (!authUser) {
+    return (
+      <AuthPage
+        initialResetToken={initialParams.resetToken}
+        initialAuthError={initialParams.authError}
+        providerAvailability={providerAvailability}
+        onAuthenticated={handleAuthenticated}
+      />
+    );
+  }
+
   const pageTitle =
     activeTab === 'evaluator'
       ? activeEvaluation
@@ -165,7 +354,9 @@ export default function App() {
         : 'Video Evaluator'
       : activeTab === 'history'
         ? 'Evaluation History'
-        : 'Scoring Rubric';
+        : activeTab === 'settings'
+          ? 'Account Settings'
+          : 'Scoring Rubric';
 
   return (
     <div className="min-h-screen flex bg-slate-50 text-slate-900">
@@ -181,6 +372,8 @@ export default function App() {
         }}
         mobileOpen={mobileMenuOpen}
         onCloseMobile={() => setMobileMenuOpen(false)}
+        user={authUser}
+        onLogout={handleLogout}
       />
 
       <div className="flex-1 min-w-0 flex flex-col">
@@ -307,23 +500,23 @@ export default function App() {
                 setApiError(null);
                 setActiveTab('evaluator');
               }}
-              onDeleteEvaluation={(id) => {
-                const next = deleteEvaluationFromHistory(id);
-                setHistory(next);
-                if (activeEvaluation?.id === id) {
-                  setActiveEvaluation(null);
-                }
-              }}
-              onClearHistory={() => {
-                const next = clearEvaluationHistory();
-                setHistory(next);
-                setActiveEvaluation(null);
-              }}
+              onDeleteEvaluation={handleDeleteEvaluation}
+              onClearHistory={handleClearHistory}
               onGoToEvaluator={() => setActiveTab('evaluator')}
             />
           )}
 
           {activeTab === 'methodology' && <MethodologyView />}
+
+          {activeTab === 'settings' && (
+            <AccountSettingsView
+              user={authUser}
+              sessionToken={sessionToken}
+              providerAvailability={providerAvailability}
+              onUserUpdated={setAuthUser}
+              onLogout={handleLogout}
+            />
+          )}
         </main>
       </div>
     </div>

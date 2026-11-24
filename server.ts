@@ -21,6 +21,13 @@ import {
   GeminiServiceError,
   evaluateReelWithGemini,
 } from './src/server/geminiService.ts';
+import type { AuthUser } from './src/types/auth.ts';
+import { getDb } from './src/server/db.ts';
+import {
+  createAuthRouter,
+  requireAuthMiddleware,
+  verifySameOriginMutation,
+} from './src/server/authRoutes.ts';
 
 const PORT = Number(process.env.PORT) || 3000;
 const UPLOAD_TEMP_DIR = path.resolve(os.tmpdir(), 'reelsevaluator-uploads');
@@ -80,7 +87,11 @@ async function removeTempFile(filePath: string | undefined): Promise<void> {
 
 async function startServer() {
   const app = express();
+  app.set('trust proxy', 1);
   app.use(express.json({ limit: '1mb' }));
+
+  const db = getDb();
+  const requireAuth = requireAuthMiddleware(db);
 
   app.use('/api', (_req, res, next) => {
     res.setHeader('Cache-Control', 'no-store');
@@ -97,7 +108,27 @@ async function startServer() {
     });
   });
 
-  app.post('/api/evaluate', (req, res) => {
+  app.use('/api/auth', createAuthRouter(db));
+
+  app.get('/api/evaluations', requireAuth, (req, res) => {
+    const authUser = (req as express.Request & { authUser: AuthUser }).authUser;
+    const evaluations = db.listEvaluationsForUser(authUser.id);
+    res.json({ evaluations });
+  });
+
+  app.delete('/api/evaluations/:id', verifySameOriginMutation, requireAuth, (req, res) => {
+    const authUser = (req as express.Request & { authUser: AuthUser }).authUser;
+    db.deleteEvaluationForUser(authUser.id, String(req.params.id));
+    res.json({ ok: true });
+  });
+
+  app.delete('/api/evaluations', verifySameOriginMutation, requireAuth, (req, res) => {
+    const authUser = (req as express.Request & { authUser: AuthUser }).authUser;
+    db.clearEvaluationsForUser(authUser.id);
+    res.json({ ok: true });
+  });
+
+  app.post('/api/evaluate', verifySameOriginMutation, requireAuth, (req, res) => {
     upload.single('video')(req, res, async (multerErr) => {
       if (multerErr) {
         if (multerErr instanceof multer.MulterError && multerErr.code === 'LIMIT_FILE_SIZE') {
@@ -193,6 +224,8 @@ async function startServer() {
           },
         });
 
+        const authUser = (req as express.Request & { authUser: AuthUser }).authUser;
+        db.saveEvaluationForUser(authUser.id, evaluation);
         res.json({ evaluation });
       } catch (err) {
         if (err instanceof GeminiServiceError) {

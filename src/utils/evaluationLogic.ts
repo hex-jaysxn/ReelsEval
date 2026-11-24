@@ -362,7 +362,6 @@ export function buildReportMarkdown(evaluation: ReelEvaluation): string {
     developmentRecommendations,
     predictedAudienceResponse,
     marketingStrategyRecommendations,
-    researchRecommendations,
     createdAt,
     modelUsed,
   } = evaluation;
@@ -424,9 +423,6 @@ export function buildReportMarkdown(evaluation: ReelEvaluation): string {
       (st) =>
         `- **${st.pillar}:** ${st.recommendation} — *Research Rationale:* ${st.researchRationale} *Next Step:* ${st.executionStep}`
     ),
-    ``,
-    `## Research Recommendations`,
-    ...researchRecommendations.map((r) => `- ${r}`),
     ``,
     `---`,
     `*Methodological Note: The rubric evaluates the content's demonstrated characteristics and its potential to encourage Interaction, Participation, and Sharing. The effectiveness levels are assessment classifications developed from the study's findings, not proof of causal effects on actual consumer behavior.*`,

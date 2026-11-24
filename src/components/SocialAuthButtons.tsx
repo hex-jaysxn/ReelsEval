@@ -17,7 +17,7 @@ export function SocialAuthButtons({
         type="button"
         onClick={onGoogleClick}
         disabled={isBusy}
-        className="w-full min-h-[44px] px-4 py-2.5 rounded-xl border border-slate-700/90 bg-slate-900/95 text-sm font-medium text-slate-100 hover:bg-slate-800 hover:border-slate-600 active:bg-slate-950 disabled:opacity-60 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-3 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400"
+        className="w-full min-h-[44px] px-4 py-2.5 rounded-xl border border-slate-700/90 bg-slate-900/95 text-sm font-medium text-slate-100 hover:bg-slate-800 hover:border-slate-600 hover:-translate-y-px active:translate-y-0 active:scale-[0.985] disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:translate-y-0 disabled:active:scale-100 transition-all duration-150 ease-out flex items-center justify-center gap-3 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400"
       >
         <svg className="h-4 w-4 shrink-0" viewBox="0 0 24 24" aria-hidden="true">
           <path

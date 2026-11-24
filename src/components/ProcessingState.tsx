@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
+import { motion, useReducedMotion } from 'motion/react';
 import { Check, Loader2 } from 'lucide-react';
 import { ElevatedGlassPanel, ProgressBar, SkeletonCard } from './ui/GlassPrimitives.tsx';
+import { RV_SPRING } from './ui/MotionPrimitives.tsx';
 
 interface ProcessingStateProps {
   fileName: string;
@@ -15,6 +17,7 @@ const STEPS = [
 
 export function ProcessingState({ fileName }: ProcessingStateProps) {
   const [activeStep, setActiveStep] = useState(0);
+  const reduced = useReducedMotion();
 
   useEffect(() => {
     const interval = window.setInterval(() => {
@@ -61,7 +64,7 @@ export function ProcessingState({ fileName }: ProcessingStateProps) {
               return (
                 <li key={label} className="flex items-center gap-3 text-sm">
                   <span
-                    className={`flex h-6 w-6 items-center justify-center rounded-full text-xs font-mono shrink-0 ${
+                    className={`flex h-6 w-6 items-center justify-center rounded-full text-xs font-mono shrink-0 transition-colors duration-200 ${
                       done
                         ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-400/40'
                         : current
@@ -69,16 +72,27 @@ export function ProcessingState({ fileName }: ProcessingStateProps) {
                           : 'bg-slate-900 text-slate-500 border border-slate-700'
                     }`}
                   >
-                    {done ? <Check className="h-3.5 w-3.5" aria-hidden="true" /> : idx + 1}
+                    {done ? (
+                      <motion.span
+                        initial={reduced ? { scale: 1 } : { scale: 0.5, opacity: 0 }}
+                        animate={{ scale: 1, opacity: 1 }}
+                        transition={reduced ? { duration: 0.01 } : RV_SPRING}
+                        className="inline-flex"
+                      >
+                        <Check className="h-3.5 w-3.5" aria-hidden="true" />
+                      </motion.span>
+                    ) : (
+                      <span className={current && !reduced ? 'animate-pulse' : ''}>{idx + 1}</span>
+                    )}
                   </span>
                   <span
-                    className={
+                    className={`transition-colors duration-200 ${
                       done
                         ? 'text-slate-400'
                         : current
                           ? 'font-medium text-white'
                           : 'text-slate-500'
-                    }
+                    }`}
                   >
                     {label}
                   </span>

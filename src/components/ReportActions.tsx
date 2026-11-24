@@ -37,7 +37,7 @@ export function ReportActions({ evaluation }: ReportActionsProps) {
   }
 
   return (
-    <GlassPanel className="px-6 py-4 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+    <GlassPanel className="px-6 py-4 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 rv-animate-in rv-card-hover">
       <div className="min-w-0 space-y-1">
         <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-slate-300">
           <span className="font-semibold text-white truncate max-w-[260px]">

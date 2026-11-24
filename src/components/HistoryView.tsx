@@ -1,8 +1,10 @@
 import { useMemo, useState } from 'react';
+import { motion, useReducedMotion } from 'motion/react';
 import { Download, Eye, Film, Search, Trash2 } from 'lucide-react';
 import type { ReelEvaluation } from '../types/evaluation.ts';
 import { buildReportMarkdown, formatBytes, formatDuration } from '../utils/evaluationLogic.ts';
 import { ActionButton, EmptyState, GlassPanel, Modal } from './ui/GlassPrimitives.tsx';
+import { RV_SPRING } from './ui/MotionPrimitives.tsx';
 
 interface HistoryViewProps {
   history: ReelEvaluation[];
@@ -24,6 +26,7 @@ export function HistoryView({
   const [searchQuery, setSearchQuery] = useState('');
   const [tierFilter, setTierFilter] = useState<TierFilter>('all');
   const [confirmClearOpen, setConfirmClearOpen] = useState(false);
+  const reduced = useReducedMotion();
 
   const filteredHistory = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
@@ -123,20 +126,29 @@ export function HistoryView({
                   { id: 'effective', label: '14–16.99' },
                   { id: 'moderate', label: '11–13.99' },
                   { id: 'less-effective', label: '8–10.99' },
-                ].map((opt) => (
-                  <button
-                    key={opt.id}
-                    type="button"
-                    onClick={() => setTierFilter(opt.id as TierFilter)}
-                    className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors whitespace-nowrap shrink-0 cursor-pointer ${
-                      tierFilter === opt.id
-                        ? 'bg-indigo-600 text-white shadow-xs'
-                        : 'text-slate-400 hover:text-white'
-                    }`}
-                  >
-                    {opt.label}
-                  </button>
-                ))}
+                ].map((opt) => {
+                  const selected = tierFilter === opt.id;
+                  return (
+                    <button
+                      key={opt.id}
+                      type="button"
+                      onClick={() => setTierFilter(opt.id as TierFilter)}
+                      className={`relative px-3 py-1.5 text-xs font-medium rounded-lg transition-colors duration-150 whitespace-nowrap shrink-0 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400 ${
+                        selected ? 'text-white' : 'text-slate-400 hover:text-white'
+                      }`}
+                    >
+                      {selected && (
+                        <motion.span
+                          layoutId="rv-history-filter"
+                          transition={reduced ? { duration: 0.01 } : RV_SPRING}
+                          className="absolute inset-0 rounded-lg bg-indigo-600 shadow-xs"
+                          aria-hidden="true"
+                        />
+                      )}
+                      <span className="relative z-10">{opt.label}</span>
+                    </button>
+                  );
+                })}
               </div>
             </div>
 
@@ -191,7 +203,7 @@ export function HistoryView({
                               type="button"
                               onClick={() => onSelectEvaluation(item)}
                               aria-label={`View report for ${item.videoMetadata.fileName}`}
-                              className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-slate-700 bg-slate-900 text-xs font-medium text-slate-200 hover:bg-slate-800 hover:text-white whitespace-nowrap cursor-pointer"
+                              className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-slate-700 bg-slate-900 text-xs font-medium text-slate-200 hover:bg-slate-800 hover:text-white active:scale-[0.97] transition-all duration-150 whitespace-nowrap cursor-pointer"
                             >
                               <Eye className="h-3.5 w-3.5" aria-hidden="true" />
                               <span>View</span>
@@ -200,7 +212,7 @@ export function HistoryView({
                               type="button"
                               onClick={() => handleExportMarkdown(item)}
                               aria-label={`Download Markdown report for ${item.videoMetadata.fileName}`}
-                              className="inline-flex items-center justify-center p-1.5 rounded-lg border border-slate-700 bg-slate-900 text-slate-300 hover:bg-slate-800 hover:text-white cursor-pointer"
+                              className="inline-flex items-center justify-center p-1.5 rounded-lg border border-slate-700 bg-slate-900 text-slate-300 hover:bg-slate-800 hover:text-white active:scale-[0.95] transition-all duration-150 cursor-pointer"
                             >
                               <Download className="h-3.5 w-3.5" aria-hidden="true" />
                             </button>
@@ -208,7 +220,7 @@ export function HistoryView({
                               type="button"
                               onClick={() => onDeleteEvaluation(item.id)}
                               aria-label={`Delete evaluation for ${item.videoMetadata.fileName}`}
-                              className="inline-flex items-center justify-center p-1.5 rounded-lg border border-slate-700 bg-slate-900 text-slate-400 hover:bg-red-950/80 hover:text-red-300 hover:border-red-500/40 cursor-pointer"
+                              className="inline-flex items-center justify-center p-1.5 rounded-lg border border-slate-700 bg-slate-900 text-slate-400 hover:bg-red-950/80 hover:text-red-300 hover:border-red-500/40 active:scale-[0.95] transition-all duration-150 cursor-pointer"
                             >
                               <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
                             </button>

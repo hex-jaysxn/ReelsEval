@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from 'react';
+import { AnimatePresence } from 'motion/react';
 import {
   KeyRound,
   Link2,
@@ -206,11 +207,13 @@ export function AccountSettingsView({
         </ActionButton>
       </GlassPanel>
 
-      {errorMessage && <AlertBanner tone="error" message={errorMessage} />}
-      {successMessage && <AlertBanner tone="success" message={successMessage} />}
+      <AnimatePresence>
+        {errorMessage && <AlertBanner key={errorMessage} tone="error" message={errorMessage} />}
+        {successMessage && <AlertBanner key={successMessage} tone="success" message={successMessage} />}
+      </AnimatePresence>
 
       {/* Connected Authentication Providers */}
-      <GlassPanel className="p-6 space-y-5">
+      <GlassPanel className="p-6 space-y-5 rv-card-hover">
         <div className="flex items-center gap-2.5">
           <ShieldCheck className="h-4 w-4 text-indigo-400 shrink-0" aria-hidden="true" />
           <div>
@@ -289,7 +292,7 @@ export function AccountSettingsView({
 
       {/* Profile & Password Management */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <GlassPanel className="p-6">
+        <GlassPanel className="p-6 rv-card-hover">
           <form onSubmit={handleSaveProfile} className="space-y-4">
             <div className="flex items-center gap-2">
               <UserIcon className="h-4 w-4 text-indigo-400" aria-hidden="true" />
@@ -319,7 +322,7 @@ export function AccountSettingsView({
           </form>
         </GlassPanel>
 
-        <GlassPanel className="p-6">
+        <GlassPanel className="p-6 rv-card-hover">
           <form onSubmit={handlePasswordSave} className="space-y-4">
             <div className="flex items-center gap-2">
               <KeyRound className="h-4 w-4 text-indigo-400" aria-hidden="true" />

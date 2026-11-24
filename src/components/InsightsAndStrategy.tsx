@@ -8,6 +8,12 @@ import {
 } from 'lucide-react';
 import type { AudienceSegmentPrediction, ReelEvaluation } from '../types/evaluation.ts';
 import { GlassPanel } from './ui/GlassPrimitives.tsx';
+import {
+  InteractiveTiltCard,
+  RevealSection,
+  ScaleMaskReveal,
+  ScrollSectionBridge,
+} from './ui/MotionPrimitives.tsx';
 
 interface InsightsAndStrategyProps {
   evaluation: ReelEvaluation;
@@ -49,145 +55,167 @@ export function InsightsAndStrategy({ evaluation }: InsightsAndStrategyProps) {
   return (
     <div className="space-y-8">
       {/* Strengths & Areas for Improvement */}
-      <section
-        aria-label="Strengths and Areas for Improvement"
-        className="grid grid-cols-1 lg:grid-cols-2 gap-6"
-      >
-        <GlassPanel className="p-6">
-          <div className="flex items-center gap-2 mb-4">
-            <CheckCircle2 className="h-4 w-4 text-emerald-400 shrink-0" aria-hidden="true" />
-            <h3 className="font-display text-base font-semibold text-white">Strengths</h3>
-          </div>
-          <ul className="space-y-3">
-            {strengths.map((item, idx) => (
-              <li
-                key={idx}
-                className="text-sm text-slate-200 leading-relaxed pb-3 border-b border-white/8 last:border-b-0 last:pb-0"
-              >
-                {item}
-              </li>
-            ))}
-          </ul>
-        </GlassPanel>
+      <ScrollSectionBridge accent="teal" className="pt-2">
+        <div
+          aria-label="Strengths and Areas for Improvement"
+          className="grid grid-cols-1 lg:grid-cols-2 gap-6"
+        >
+          <ScaleMaskReveal inView>
+            <InteractiveTiltCard>
+              <GlassPanel className="p-6 h-full rv-card-hover">
+                <div className="flex items-center gap-2 mb-4">
+                  <CheckCircle2 className="h-4 w-4 text-emerald-400 shrink-0" aria-hidden="true" />
+                  <h3 className="font-display text-base font-semibold text-white">Strengths</h3>
+                </div>
+                <ul className="space-y-3">
+                  {strengths.map((item, idx) => (
+                    <li
+                      key={idx}
+                      className="text-sm text-slate-200 leading-relaxed pb-3 border-b border-white/8 last:border-b-0 last:pb-0"
+                    >
+                      {item}
+                    </li>
+                  ))}
+                </ul>
+              </GlassPanel>
+            </InteractiveTiltCard>
+          </ScaleMaskReveal>
 
-        <GlassPanel className="p-6">
-          <div className="flex items-center gap-2 mb-4">
-            <AlertTriangle className="h-4 w-4 text-amber-400 shrink-0" aria-hidden="true" />
-            <h3 className="font-display text-base font-semibold text-white">
-              Areas for Improvement
-            </h3>
-          </div>
-          <ul className="space-y-3">
-            {areasForImprovement.map((item, idx) => (
-              <li
-                key={idx}
-                className="text-sm text-slate-200 leading-relaxed pb-3 border-b border-white/8 last:border-b-0 last:pb-0"
-              >
-                {item}
-              </li>
-            ))}
-          </ul>
-        </GlassPanel>
-      </section>
+          <ScaleMaskReveal inView delay={0.08}>
+            <InteractiveTiltCard>
+              <GlassPanel className="p-6 h-full rv-card-hover">
+                <div className="flex items-center gap-2 mb-4">
+                  <AlertTriangle className="h-4 w-4 text-amber-400 shrink-0" aria-hidden="true" />
+                  <h3 className="font-display text-base font-semibold text-white">
+                    Areas for Improvement
+                  </h3>
+                </div>
+                <ul className="space-y-3">
+                  {areasForImprovement.map((item, idx) => (
+                    <li
+                      key={idx}
+                      className="text-sm text-slate-200 leading-relaxed pb-3 border-b border-white/8 last:border-b-0 last:pb-0"
+                    >
+                      {item}
+                    </li>
+                  ))}
+                </ul>
+              </GlassPanel>
+            </InteractiveTiltCard>
+          </ScaleMaskReveal>
+        </div>
+      </ScrollSectionBridge>
 
       {/* Development Recommendations */}
-      <GlassPanel as="section" ariaLabel="Development Recommendations" className="p-6">
-        <div className="flex items-center gap-2 mb-4">
-          <ArrowUpRight className="h-4 w-4 text-indigo-400 shrink-0" aria-hidden="true" />
-          <h3 className="font-display text-base font-semibold text-white">
-            Development Recommendations
-          </h3>
-        </div>
+      <ScrollSectionBridge accent="indigo" className="pt-2">
+        <RevealSection>
+          <GlassPanel as="section" ariaLabel="Development Recommendations" className="p-6 rv-card-hover">
+            <div className="flex items-center gap-2 mb-4">
+              <ArrowUpRight className="h-4 w-4 text-indigo-400 shrink-0" aria-hidden="true" />
+              <h3 className="font-display text-base font-semibold text-white">
+                Development Recommendations
+              </h3>
+            </div>
 
-        <div className="divide-y divide-white/8">
-          {developmentRecommendations.map((rec, idx) => (
-            <div key={idx} className="py-4 first:pt-1 last:pb-1">
-              <div className="flex flex-wrap items-center gap-2 text-xs mb-1.5">
-                <span className={`font-semibold ${getPriorityStyle(rec.priority)}`}>
-                  {rec.priority} Priority
-                </span>
-                <span className="text-slate-600" aria-hidden="true">
-                  ·
-                </span>
-                <span className="font-medium text-slate-200">{rec.targetVariable}</span>
-                <span className="text-slate-600" aria-hidden="true">
-                  ·
-                </span>
-                <span className="font-medium text-teal-300">{rec.targetDimension}</span>
-                {rec.timestampHint && (
-                  <>
+            <div className="divide-y divide-white/8">
+              {developmentRecommendations.map((rec, idx) => (
+                <div key={idx} className="py-4 first:pt-1 last:pb-1">
+                  <div className="flex flex-wrap items-center gap-2 text-xs mb-1.5">
+                    <span className={`font-semibold ${getPriorityStyle(rec.priority)}`}>
+                      {rec.priority} Priority
+                    </span>
                     <span className="text-slate-600" aria-hidden="true">
                       ·
                     </span>
-                    <span className="font-mono text-slate-400">{rec.timestampHint}</span>
-                  </>
-                )}
-              </div>
-              <p className="text-sm font-medium text-white leading-relaxed">
-                {rec.recommendation}
-              </p>
-              <p className="mt-1 text-xs text-slate-400">
-                Expected Impact: <span className="text-slate-200">{rec.expectedImpact}</span>
-              </p>
+                    <span className="font-medium text-slate-200">{rec.targetVariable}</span>
+                    <span className="text-slate-600" aria-hidden="true">
+                      ·
+                    </span>
+                    <span className="font-medium text-teal-300">{rec.targetDimension}</span>
+                    {rec.timestampHint && (
+                      <>
+                        <span className="text-slate-600" aria-hidden="true">
+                          ·
+                        </span>
+                        <span className="font-mono text-slate-400">{rec.timestampHint}</span>
+                      </>
+                    )}
+                  </div>
+                  <p className="text-sm font-medium text-white leading-relaxed">
+                    {rec.recommendation}
+                  </p>
+                  <p className="mt-1 text-xs text-slate-400">
+                    Expected Impact: <span className="text-slate-200">{rec.expectedImpact}</span>
+                  </p>
+                </div>
+              ))}
             </div>
-          ))}
-        </div>
-      </GlassPanel>
+          </GlassPanel>
+        </RevealSection>
+      </ScrollSectionBridge>
 
       {/* Predicted Audience Response */}
-      <GlassPanel as="section" ariaLabel="Predicted Audience Response" className="p-6">
-        <div className="flex items-center gap-2 mb-4">
-          <Users className="h-4 w-4 text-indigo-400 shrink-0" aria-hidden="true" />
-          <h3 className="font-display text-base font-semibold text-white">
-            Predicted Audience Response
-          </h3>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {predictedAudienceResponse.map((aud, idx) => (
-            <div
-              key={idx}
-              className="pt-4 border-t border-white/8 first:border-t-0 md:nth-2:border-t-0 md:first:pt-0 md:nth-2:pt-0"
-            >
-              <div className="flex flex-wrap items-baseline justify-between gap-2">
-                <h4 className="font-display text-sm font-semibold text-white">{aud.segment}</h4>
-                <span className={`text-xs font-semibold ${getSentimentColor(aud.predictedSentiment)}`}>
-                  {aud.predictedSentiment}
-                </span>
-              </div>
-              <p className="mt-1.5 text-sm text-slate-300 leading-relaxed">{aud.responseSummary}</p>
-              <p className="mt-1.5 text-xs text-slate-400">
-                Likely Action: <span className="font-medium text-slate-200">{aud.likelyAction}</span>
-              </p>
+      <ScrollSectionBridge accent="sky" className="pt-2">
+        <RevealSection>
+          <GlassPanel as="section" ariaLabel="Predicted Audience Response" className="p-6 rv-card-hover">
+            <div className="flex items-center gap-2 mb-4">
+              <Users className="h-4 w-4 text-indigo-400 shrink-0" aria-hidden="true" />
+              <h3 className="font-display text-base font-semibold text-white">
+                Predicted Audience Response
+              </h3>
             </div>
-          ))}
-        </div>
-      </GlassPanel>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {predictedAudienceResponse.map((aud, idx) => (
+                <div
+                  key={idx}
+                  className="pt-4 border-t border-white/8 first:border-t-0 md:nth-2:border-t-0 md:first:pt-0 md:nth-2:pt-0"
+                >
+                  <div className="flex flex-wrap items-baseline justify-between gap-2">
+                    <h4 className="font-display text-sm font-semibold text-white">{aud.segment}</h4>
+                    <span className={`text-xs font-semibold ${getSentimentColor(aud.predictedSentiment)}`}>
+                      {aud.predictedSentiment}
+                    </span>
+                  </div>
+                  <p className="mt-1.5 text-sm text-slate-300 leading-relaxed">{aud.responseSummary}</p>
+                  <p className="mt-1.5 text-xs text-slate-400">
+                    Likely Action: <span className="font-medium text-slate-200">{aud.likelyAction}</span>
+                  </p>
+                </div>
+              ))}
+            </div>
+          </GlassPanel>
+        </RevealSection>
+      </ScrollSectionBridge>
 
       {/* Marketing Strategy Recommendations */}
-      <GlassPanel as="section" ariaLabel="Marketing Strategy Recommendations" className="p-6">
-        <div className="flex items-center gap-2 mb-4">
-          <Compass className="h-4 w-4 text-indigo-400 shrink-0" aria-hidden="true" />
-          <h3 className="font-display text-base font-semibold text-white">
-            Marketing Strategy Recommendations
-          </h3>
-        </div>
-
-        <div className="divide-y divide-white/8">
-          {marketingStrategyRecommendations.map((item, idx) => (
-            <div key={idx} className="py-4 first:pt-1 last:pb-1">
-              <p className="text-xs font-semibold text-indigo-300">{item.pillar}</p>
-              <p className="mt-1 text-sm font-medium text-white">{item.recommendation}</p>
-              <p className="mt-1.5 text-xs text-slate-300 leading-relaxed">
-                {item.researchRationale}
-              </p>
-              <p className="mt-1.5 text-xs text-slate-400">
-                Next Step: <span className="font-medium text-slate-200">{item.executionStep}</span>
-              </p>
+      <ScrollSectionBridge accent="teal" className="pt-2">
+        <RevealSection>
+          <GlassPanel as="section" ariaLabel="Marketing Strategy Recommendations" className="p-6 rv-card-hover">
+            <div className="flex items-center gap-2 mb-4">
+              <Compass className="h-4 w-4 text-indigo-400 shrink-0" aria-hidden="true" />
+              <h3 className="font-display text-base font-semibold text-white">
+                Marketing Strategy Recommendations
+              </h3>
             </div>
-          ))}
-        </div>
-      </GlassPanel>
+
+            <div className="divide-y divide-white/8">
+              {marketingStrategyRecommendations.map((item, idx) => (
+                <div key={idx} className="py-4 first:pt-1 last:pb-1">
+                  <p className="text-xs font-semibold text-indigo-300">{item.pillar}</p>
+                  <p className="mt-1 text-sm font-medium text-white">{item.recommendation}</p>
+                  <p className="mt-1.5 text-xs text-slate-300 leading-relaxed">
+                    {item.researchRationale}
+                  </p>
+                  <p className="mt-1.5 text-xs text-slate-400">
+                    Next Step: <span className="font-medium text-slate-200">{item.executionStep}</span>
+                  </p>
+                </div>
+              ))}
+            </div>
+          </GlassPanel>
+        </RevealSection>
+      </ScrollSectionBridge>
 
       {/* Page 24 Methodological Note */}
       <aside

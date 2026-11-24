@@ -1,5 +1,7 @@
-import { useEffect, type ReactNode } from 'react';
+import { useEffect, useRef, type ReactNode } from 'react';
 import { AlertCircle, CheckCircle2, X } from 'lucide-react';
+import { AnimatePresence, motion, useInView } from 'motion/react';
+import { RV_EASE, RV_SPRING_TACTILE, useMotionProfile } from './MotionPrimitives.tsx';
 
 export function ReeViewMark({ size = 'md' }: { size?: 'sm' | 'md' | 'lg' }) {
   const dims =
@@ -7,10 +9,10 @@ export function ReeViewMark({ size = 'md' }: { size?: 'sm' | 'md' | 'lg' }) {
 
   return (
     <span
-      className={`relative inline-flex ${dims} items-center justify-center bg-gradient-to-br from-indigo-500 via-indigo-600 to-sky-500 text-white shadow-sm ring-1 ring-white/20 shrink-0`}
+      className={`relative inline-flex ${dims} items-center justify-center bg-gradient-to-br from-indigo-500 via-indigo-600 to-sky-500 text-white shadow-sm ring-1 ring-white/20 shrink-0 transition-transform duration-200 ease-out group-hover:scale-105 group-hover:rotate-3 group-active:scale-95`}
       aria-hidden="true"
     >
-      <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none">
+      <svg className="h-4 w-4 transition-transform duration-200 group-hover:translate-x-[0.5px]" viewBox="0 0 24 24" fill="none">
         <path
           d="M7 5.5L18.5 12L7 18.5V5.5Z"
           fill="currentColor"
@@ -75,17 +77,17 @@ export function ActionButton({
 
   const variantClass =
     variant === 'primary'
-      ? 'bg-indigo-600 text-white hover:bg-indigo-500 active:bg-indigo-700 shadow-sm ring-1 ring-indigo-400/30 disabled:bg-slate-800 disabled:text-slate-500 disabled:ring-white/5'
+      ? 'rv-btn-sheen bg-indigo-600 text-white hover:bg-indigo-500 active:bg-indigo-700 shadow-sm hover:shadow-lg hover:shadow-indigo-500/25 ring-1 ring-indigo-400/35 hover:ring-indigo-300/60 disabled:bg-slate-800 disabled:text-slate-500 disabled:ring-white/5 disabled:hover:translate-y-0 disabled:active:scale-100'
       : variant === 'secondary'
-        ? 'bg-slate-900/90 text-slate-100 border border-slate-700/80 hover:bg-slate-800 hover:border-slate-600 disabled:opacity-50'
+        ? 'bg-slate-900/90 text-slate-100 border border-slate-700/80 hover:bg-slate-800 hover:border-slate-500/80 hover:shadow-md hover:shadow-slate-950/50 disabled:opacity-50 disabled:hover:translate-y-0 disabled:active:scale-100'
         : variant === 'danger'
-          ? 'bg-red-950/80 text-red-200 border border-red-500/35 hover:bg-red-900/80 hover:text-white disabled:opacity-50'
-          : 'bg-transparent text-slate-300 hover:bg-white/6 hover:text-white disabled:opacity-50';
+          ? 'bg-red-950/80 text-red-200 border border-red-500/35 hover:bg-red-900/85 hover:text-white hover:border-red-400/55 disabled:opacity-50 disabled:hover:translate-y-0 disabled:active:scale-100'
+          : 'bg-transparent text-slate-300 hover:bg-white/8 hover:text-white disabled:opacity-50 disabled:hover:translate-y-0 disabled:active:scale-100';
 
   return (
     <button
       {...rest}
-      className={`inline-flex items-center justify-center gap-2 rounded-xl font-medium transition-colors duration-150 whitespace-nowrap shrink-0 cursor-pointer disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400 focus-visible:ring-offset-2 focus-visible:ring-offset-[#070B14] ${sizeClass} ${variantClass} ${className}`}
+      className={`group inline-flex items-center justify-center gap-2 rounded-xl font-medium transition-all duration-180 ease-out hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.97] whitespace-nowrap shrink-0 cursor-pointer disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400 focus-visible:ring-offset-2 focus-visible:ring-offset-[#070B14] ${sizeClass} ${variantClass} ${className}`}
     >
       {children}
     </button>
@@ -112,7 +114,7 @@ export function StatusBadge({ tone, children, className = '' }: StatusBadgeProps
 
   return (
     <span
-      className={`inline-flex items-center px-2.5 py-0.5 rounded-md border text-xs font-semibold whitespace-nowrap ${toneClass} ${className}`}
+      className={`inline-flex items-center px-2.5 py-0.5 rounded-md border text-xs font-semibold whitespace-nowrap transition-colors duration-150 ${toneClass} ${className}`}
     >
       {children}
     </span>
@@ -132,9 +134,15 @@ export function ProgressBar({
   colorClass = 'bg-indigo-500',
   label,
 }: ProgressBarProps) {
+  const ref = useRef<HTMLDivElement | null>(null);
+  const profile = useMotionProfile();
+  const isInView = useInView(ref, { once: true, amount: 0.25 });
+  const isReduced = profile.tier === 'reduced';
   const pct = Math.max(0, Math.min(100, (value / max) * 100));
+
   return (
     <div
+      ref={ref}
       className="h-2 w-full rounded-full bg-slate-800/90 overflow-hidden ring-1 ring-white/5"
       role={label ? 'progressbar' : undefined}
       aria-label={label}
@@ -142,9 +150,14 @@ export function ProgressBar({
       aria-valuemin={label ? 0 : undefined}
       aria-valuemax={label ? max : undefined}
     >
-      <div
-        className={`h-full rounded-full transition-[width] duration-500 ease-out ${colorClass}`}
-        style={{ width: `${pct}%` }}
+      <motion.div
+        initial={isReduced ? { width: `${pct}%` } : { width: 0 }}
+        animate={isInView || isReduced ? { width: `${pct}%` } : { width: 0 }}
+        transition={{
+          duration: isReduced ? 0.01 : 0.65 * profile.durationScale,
+          ease: RV_EASE,
+        }}
+        className={`h-full rounded-full ${colorClass}`}
       />
     </div>
   );
@@ -167,12 +180,26 @@ export function AlertBanner({
   action,
   actionLayout = 'inline',
 }: AlertBannerProps) {
+  const profile = useMotionProfile();
+  const isReduced = profile.tier === 'reduced';
   const isError = tone === 'error';
   const isStacked = actionLayout === 'stacked';
   return (
-    <div
+    <motion.div
       role={isError ? 'alert' : 'status'}
-      className={`rounded-xl border px-4 py-3.5 flex flex-col ${
+      initial={
+        isReduced
+          ? { opacity: 1 }
+          : { opacity: 0, x: 12 * profile.distanceScale, y: -4 * profile.distanceScale, scale: 0.985 }
+      }
+      animate={{ opacity: 1, x: 0, y: 0, scale: 1 }}
+      exit={
+        isReduced
+          ? { opacity: 0 }
+          : { opacity: 0, x: -10 * profile.distanceScale, scale: 0.985 }
+      }
+      transition={{ duration: isReduced ? 0.01 : 0.24 * profile.durationScale, ease: RV_EASE }}
+      className={`relative overflow-hidden rounded-xl border px-4 py-3.5 flex flex-col ${
         isStacked ? 'gap-3' : 'sm:flex-row sm:items-start justify-between gap-3'
       } ${
         isError
@@ -181,11 +208,18 @@ export function AlertBanner({
       }`}
     >
       <div className="flex items-start gap-3">
-        {isError ? (
-          <AlertCircle className="h-4 w-4 text-red-400 shrink-0 mt-0.5" aria-hidden="true" />
-        ) : (
-          <CheckCircle2 className="h-4 w-4 text-emerald-400 shrink-0 mt-0.5" aria-hidden="true" />
-        )}
+        <motion.span
+          initial={isReduced ? { scale: 1 } : { scale: 0.6, rotate: -10 }}
+          animate={{ scale: 1, rotate: 0 }}
+          transition={isReduced ? { duration: 0.01 } : RV_SPRING_TACTILE}
+          className="inline-flex shrink-0 mt-0.5"
+        >
+          {isError ? (
+            <AlertCircle className="h-4 w-4 text-red-400" aria-hidden="true" />
+          ) : (
+            <CheckCircle2 className="h-4 w-4 text-emerald-400" aria-hidden="true" />
+          )}
+        </motion.span>
         <div className="min-w-0">
           {title && (
             <h2 className="font-display text-sm font-semibold text-white">{title}</h2>
@@ -199,7 +233,21 @@ export function AlertBanner({
         </div>
       </div>
       {action && <div className={isStacked ? 'pl-7' : 'shrink-0'}>{action}</div>}
-    </div>
+      {!isReduced && (
+        <motion.span
+          aria-hidden="true"
+          initial={{ scaleX: 0 }}
+          animate={{ scaleX: 1 }}
+          transition={{ duration: 0.55 * profile.durationScale, ease: RV_EASE }}
+          style={{ transformOrigin: '0% 50%' }}
+          className={`pointer-events-none absolute bottom-0 left-0 right-0 h-[2px] ${
+            isError
+              ? 'bg-gradient-to-r from-red-500/80 via-amber-400/50 to-transparent'
+              : 'bg-gradient-to-r from-emerald-400/80 via-teal-300/50 to-transparent'
+          }`}
+        />
+      )}
+    </motion.div>
   );
 }
 
@@ -212,6 +260,9 @@ interface ModalProps {
 }
 
 export function Modal({ open, title, description, onClose, footer }: ModalProps) {
+  const profile = useMotionProfile();
+  const reduced = profile.tier === 'reduced';
+
   useEffect(() => {
     if (!open) return;
     function onKey(e: KeyboardEvent) {
@@ -221,38 +272,52 @@ export function Modal({ open, title, description, onClose, footer }: ModalProps)
     return () => window.removeEventListener('keydown', onKey);
   }, [open, onClose]);
 
-  if (!open) return null;
-
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 no-print"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="rv-modal-title"
-    >
-      <div
-        className="fixed inset-0 bg-slate-950/75 backdrop-blur-xs"
-        onClick={onClose}
-        aria-hidden="true"
-      />
-      <ElevatedGlassPanel className="relative z-10 w-full max-w-md p-6 rv-animate-in">
-        <div className="flex items-start justify-between gap-3">
-          <h2 id="rv-modal-title" className="font-display text-lg font-bold text-white">
-            {title}
-          </h2>
-          <button
-            type="button"
+    <AnimatePresence>
+      {open && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 no-print"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="rv-modal-title"
+        >
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: reduced ? 0.01 : 0.18, ease: 'easeOut' }}
+            className="fixed inset-0 bg-slate-950/75 backdrop-blur-xs"
             onClick={onClose}
-            aria-label="Close dialog"
-            className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 hover:bg-white/10 hover:text-white cursor-pointer"
+            aria-hidden="true"
+          />
+          <motion.div
+            initial={reduced ? { opacity: 1 } : { opacity: 0, scale: 0.96, y: 8 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={reduced ? { opacity: 0 } : { opacity: 0, scale: 0.96, y: 6 }}
+            transition={{ duration: reduced ? 0.01 : 0.2, ease: RV_EASE }}
+            className="relative z-10 w-full max-w-md"
           >
-            <X className="h-4 w-4" aria-hidden="true" />
-          </button>
+            <ElevatedGlassPanel className="w-full p-6">
+              <div className="flex items-start justify-between gap-3">
+                <h2 id="rv-modal-title" className="font-display text-lg font-bold text-white">
+                  {title}
+                </h2>
+                <button
+                  type="button"
+                  onClick={onClose}
+                  aria-label="Close dialog"
+                  className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 hover:bg-white/10 hover:text-white active:scale-95 transition-all duration-150 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400"
+                >
+                  <X className="h-4 w-4" aria-hidden="true" />
+                </button>
+              </div>
+              <p className="mt-2 text-sm text-slate-300 leading-relaxed">{description}</p>
+              <div className="mt-6 flex items-center justify-end gap-3">{footer}</div>
+            </ElevatedGlassPanel>
+          </motion.div>
         </div>
-        <p className="mt-2 text-sm text-slate-300 leading-relaxed">{description}</p>
-        <div className="mt-6 flex items-center justify-end gap-3">{footer}</div>
-      </ElevatedGlassPanel>
-    </div>
+      )}
+    </AnimatePresence>
   );
 }
 
@@ -267,9 +332,16 @@ export function EmptyState({
   description: string;
   action?: ReactNode;
 }) {
+  const profile = useMotionProfile();
+  const reduced = profile.tier === 'reduced';
   return (
-    <div className="py-16 px-4 text-center">
-      <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-slate-900/90 border border-slate-700/70 text-indigo-400">
+    <motion.div
+      initial={reduced ? { opacity: 1 } : { opacity: 0, y: 12 * profile.distanceScale }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: reduced ? 0.01 : 0.3 * profile.durationScale, ease: RV_EASE }}
+      className="py-16 px-4 text-center"
+    >
+      <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-slate-900/90 border border-slate-700/70 text-indigo-400 shadow-inner">
         {icon}
       </div>
       <h2 className="mt-4 font-display text-base font-semibold text-white">{title}</h2>
@@ -277,20 +349,21 @@ export function EmptyState({
         {description}
       </p>
       {action && <div className="mt-5 flex justify-center">{action}</div>}
-    </div>
+    </motion.div>
   );
 }
 
 export function SkeletonCard({ lines = 3 }: { lines?: number }) {
   return (
-    <div className="rounded-xl border border-slate-800/80 bg-slate-900/50 p-5 space-y-3 animate-pulse">
-      <div className="h-4 w-1/3 rounded bg-slate-800" />
+    <div className="rounded-xl border border-slate-800/80 bg-slate-900/50 p-5 space-y-3 rv-skeleton-shimmer">
+      <div className="h-4 w-1/3 rounded bg-slate-800/90" />
       {Array.from({ length: lines }).map((_, idx) => (
         <div
           key={idx}
-          className={`h-3 rounded bg-slate-800/80 ${idx === lines - 1 ? 'w-2/3' : 'w-full'}`}
+          className={`h-3 rounded bg-slate-800/70 ${idx === lines - 1 ? 'w-2/3' : 'w-full'}`}
         />
       ))}
     </div>
   );
 }
+

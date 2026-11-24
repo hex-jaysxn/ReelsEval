@@ -1,6 +1,14 @@
 import { useState } from 'react';
+import { motion } from 'motion/react';
 import type { ReelEvaluation } from '../types/evaluation.ts';
 import { GlassPanel, ProgressBar } from './ui/GlassPrimitives.tsx';
+import {
+  InteractiveTiltCard,
+  RV_EASE,
+  ScaleMaskReveal,
+  ScrollSectionBridge,
+  useMotionProfile,
+} from './ui/MotionPrimitives.tsx';
 
 interface ChartsSectionProps {
   evaluation: ReelEvaluation;
@@ -9,6 +17,8 @@ interface ChartsSectionProps {
 export function ChartsSection({ evaluation }: ChartsSectionProps) {
   const { variables, brandEngagementSummary } = evaluation;
   const [hoveredAxis, setHoveredAxis] = useState<string | null>(null);
+  const profile = useMotionProfile();
+  const reduced = profile.tier === 'reduced';
 
   const radarAxes = [
     {
@@ -111,12 +121,15 @@ export function ChartsSection({ evaluation }: ChartsSectionProps) {
   ];
 
   return (
-    <section
-      aria-label="Score Visualization Charts"
-      className="grid grid-cols-1 lg:grid-cols-2 gap-6"
-    >
-      {/* Chart 1: 4-Variable Reels Marketing Content Radar + Study Survey Mean */}
-      <GlassPanel className="p-6">
+    <ScrollSectionBridge accent="sky" className="pt-2">
+      <div
+        aria-label="Score Visualization Charts"
+        className="grid grid-cols-1 lg:grid-cols-2 gap-6"
+      >
+        {/* Chart 1: 4-Variable Reels Marketing Content Radar + Study Survey Mean */}
+        <ScaleMaskReveal inView>
+          <InteractiveTiltCard>
+            <GlassPanel className="p-6 h-full rv-card-hover">
         <div className="flex flex-wrap items-baseline justify-between gap-2 mb-4">
           <h3 className="font-display text-base font-semibold text-white">
             Reels Content Profile vs. Study Mean
@@ -192,12 +205,17 @@ export function ChartsSection({ evaluation }: ChartsSectionProps) {
               strokeLinejoin="round"
             />
 
-            <polygon
+            <motion.polygon
               points={polygonPoints}
               fill="rgba(99, 102, 241, 0.28)"
               stroke="#818CF8"
               strokeWidth="2.2"
               strokeLinejoin="round"
+              style={{ transformOrigin: `${cx}px ${cy}px` }}
+              initial={reduced ? { opacity: 1, scale: 1 } : { opacity: 0, scale: 0.72 }}
+              whileInView={{ opacity: 1, scale: 1 }}
+              viewport={{ once: true, amount: 0.2 }}
+              transition={{ duration: reduced ? 0.01 : 0.45, ease: RV_EASE }}
             />
 
             {radarAxes.map((axis, idx) => {
@@ -214,7 +232,7 @@ export function ChartsSection({ evaluation }: ChartsSectionProps) {
                   strokeWidth="1.5"
                   onMouseEnter={() => setHoveredAxis(axis.key)}
                   onMouseLeave={() => setHoveredAxis(null)}
-                  className="cursor-pointer transition-all"
+                  className="cursor-pointer transition-all duration-150"
                 />
               );
             })}
@@ -255,9 +273,13 @@ export function ChartsSection({ evaluation }: ChartsSectionProps) {
           </div>
         </div>
       </GlassPanel>
+          </InteractiveTiltCard>
+        </ScaleMaskReveal>
 
       {/* Chart 2: Content Variables vs Brand Engagement Dimension Means */}
-      <GlassPanel className="p-6">
+      <ScaleMaskReveal inView delay={0.08}>
+        <InteractiveTiltCard>
+          <GlassPanel className="p-6 h-full rv-card-hover">
         <div className="flex flex-wrap items-baseline justify-between gap-2 mb-4">
           <h3 className="font-display text-base font-semibold text-white">
             Variable Averages &amp; Engagement Means
@@ -291,6 +313,9 @@ export function ChartsSection({ evaluation }: ChartsSectionProps) {
           ))}
         </div>
       </GlassPanel>
-    </section>
+        </InteractiveTiltCard>
+      </ScaleMaskReveal>
+      </div>
+    </ScrollSectionBridge>
   );
 }

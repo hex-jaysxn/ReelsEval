@@ -1,10 +1,20 @@
 import { useEffect, useState, type FormEvent } from 'react';
+import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
 import { ArrowLeft, ExternalLink, KeyRound, Lock, Mail, RotateCw, ShieldCheck, User } from 'lucide-react';
 import type { AuthProviderAvailability, AuthUser } from '../types/auth.ts';
+import type { AppRoute } from '../utils/appRoute.ts';
 import { parseAuthApiResponse } from '../utils/authResponse.ts';
 import { launchOAuthPopup } from '../utils/oauthPopup.ts';
 import { SocialAuthButtons } from './SocialAuthButtons.tsx';
 import { ActionButton, AlertBanner, ElevatedGlassPanel, GlassPanel, ReeViewMark } from './ui/GlassPrimitives.tsx';
+import {
+  BlurRevealText,
+  ClipRevealHeading,
+  RV_EASE,
+  RV_SPRING,
+  ScaleMaskReveal,
+  ScrollDepthBackdrop,
+} from './ui/MotionPrimitives.tsx';
 
 type AuthMode = 'login' | 'register' | 'forgot' | 'reset';
 
@@ -22,6 +32,7 @@ interface AuthPageProps {
   providerAvailability: AuthProviderAvailability | null;
   onAuthenticated: (user: AuthUser, sessionToken?: string) => void;
   onBackToLanding?: () => void;
+  onNavigateRoute?: (route: AppRoute) => void;
 }
 
 export function AuthPage({
@@ -32,7 +43,9 @@ export function AuthPage({
   providerAvailability,
   onAuthenticated,
   onBackToLanding,
+  onNavigateRoute,
 }: AuthPageProps) {
+  const reduced = useReducedMotion();
   const [mode, setMode] = useState<AuthMode>(initialResetToken ? 'reset' : initialMode);
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -364,10 +377,16 @@ export function AuthPage({
   }
 
   return (
-    <div className="min-h-screen rv-atmosphere flex flex-col justify-center py-6 px-4 sm:px-6">
-      <div className="sm:mx-auto sm:w-full sm:max-w-[460px] rv-animate-in">
+    <div className="relative min-h-screen rv-atmosphere overflow-x-clip flex flex-col justify-center py-6 px-4 sm:px-6">
+      <ScrollDepthBackdrop />
+      <div className="relative z-10 sm:mx-auto sm:w-full sm:max-w-[460px]">
         {onBackToLanding && (
-          <div className="mb-3 flex items-center justify-between">
+          <motion.div
+            initial={reduced ? { opacity: 1 } : { opacity: 0, x: -8 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: reduced ? 0.01 : 0.3, ease: RV_EASE }}
+            className="mb-3 flex items-center justify-between"
+          >
             <button
               type="button"
               onClick={onBackToLanding}
@@ -376,16 +395,22 @@ export function AuthPage({
               <ArrowLeft className="h-3.5 w-3.5" aria-hidden="true" />
               <span>Back to ReeView Overview</span>
             </button>
-          </div>
+          </motion.div>
         )}
 
-        <div className="flex items-center justify-center gap-3 mb-4">
+        <motion.div
+          initial={reduced ? { opacity: 1 } : { opacity: 0, y: -8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: reduced ? 0.01 : 0.36, delay: 0.04, ease: RV_EASE }}
+          className="flex items-center justify-center gap-3 mb-4"
+        >
           <ReeViewMark size="md" />
           <span className="font-display text-2xl font-bold tracking-tight text-white">
             ReeView
           </span>
-        </div>
+        </motion.div>
 
+        <ScaleMaskReveal delay={0.08}>
         <ElevatedGlassPanel className="p-6 sm:p-7">
           {mode !== 'forgot' && mode !== 'reset' && !otpChallenge && (
             <div
@@ -393,163 +418,189 @@ export function AuthPage({
               role="tablist"
               aria-label="Authentication mode"
             >
-              <button
-                type="button"
-                role="tab"
-                aria-selected={mode === 'login'}
-                onClick={() => switchMode('login')}
-                className={`flex-1 py-2 text-sm font-medium rounded-lg transition-colors cursor-pointer ${
-                  mode === 'login'
-                    ? 'bg-indigo-600 text-white shadow-sm'
-                    : 'text-slate-400 hover:text-white'
-                }`}
-              >
-                Sign In
-              </button>
-              <button
-                type="button"
-                role="tab"
-                aria-selected={mode === 'register'}
-                onClick={() => switchMode('register')}
-                className={`flex-1 py-2 text-sm font-medium rounded-lg transition-colors cursor-pointer ${
-                  mode === 'register'
-                    ? 'bg-indigo-600 text-white shadow-sm'
-                    : 'text-slate-400 hover:text-white'
-                }`}
-              >
-                Create Account
-              </button>
+              {(
+                [
+                  { id: 'login', label: 'Sign In' },
+                  { id: 'register', label: 'Create Account' },
+                ] as const
+              ).map((tab) => {
+                const selected = mode === tab.id;
+                return (
+                  <button
+                    key={tab.id}
+                    type="button"
+                    role="tab"
+                    aria-selected={selected}
+                    onClick={() => switchMode(tab.id)}
+                    className={`relative flex-1 py-2 text-sm font-medium rounded-lg transition-colors duration-150 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400 ${
+                      selected ? 'text-white' : 'text-slate-400 hover:text-white'
+                    }`}
+                  >
+                    {selected && (
+                      <motion.span
+                        layoutId="rv-auth-tab-pill"
+                        transition={reduced ? { duration: 0.01 } : RV_SPRING}
+                        className="absolute inset-0 rounded-lg bg-indigo-600 shadow-sm"
+                        aria-hidden="true"
+                      />
+                    )}
+                    <span className="relative z-10">{tab.label}</span>
+                  </button>
+                );
+              })}
             </div>
           )}
 
           <div className="mb-5">
-            <h1 className="font-display text-xl font-bold text-white">
-              {otpChallenge
-                ? 'Verify your email'
-                : mode === 'login'
-                  ? 'Welcome back to ReeView'
-                  : mode === 'register'
-                    ? 'Create your ReeView account'
-                    : mode === 'forgot'
-                      ? 'Reset your password'
-                      : 'Set a new password'}
-            </h1>
-            <p className="mt-1 text-sm text-slate-300 leading-relaxed">
-              {otpChallenge
-                ? `Enter the 6-digit verification code sent to ${otpChallenge.maskedEmail} before ${
-                    otpChallenge.purpose === 'register'
-                      ? 'completing registration'
-                      : 'signing in'
-                  }.`
-                : mode === 'login'
-                  ? 'Sign in with Google or verify via Email OTP to access your saved assessments.'
-                  : mode === 'register'
-                    ? 'Start evaluating marketing Reels with Google Gemini Free Tier.'
-                    : mode === 'forgot'
-                      ? 'Enter the email associated with your account to receive a reset link.'
-                      : 'Choose a strong password (minimum 8 characters) for your account.'}
-            </p>
+            <ClipRevealHeading delay={0.14}>
+              <h1 className="font-display text-xl font-bold text-white">
+                {otpChallenge
+                  ? 'Verify your email'
+                  : mode === 'login'
+                    ? 'Welcome back to ReeView'
+                    : mode === 'register'
+                      ? 'Create your ReeView account'
+                      : mode === 'forgot'
+                        ? 'Reset your password'
+                        : 'Set a new password'}
+              </h1>
+            </ClipRevealHeading>
+            <BlurRevealText delay={0.2}>
+              <p className="mt-1 text-sm text-slate-300 leading-relaxed">
+                {otpChallenge
+                  ? `Enter the 6-digit verification code sent to ${otpChallenge.maskedEmail} before ${
+                      otpChallenge.purpose === 'register'
+                        ? 'completing registration'
+                        : 'signing in'
+                    }.`
+                  : mode === 'login'
+                    ? 'Sign in with Google or verify via Email OTP to access your saved assessments.'
+                    : mode === 'register'
+                      ? 'Start evaluating marketing Reels with Google Gemini Free Tier.'
+                      : mode === 'forgot'
+                        ? 'Enter the email associated with your account to receive a reset link.'
+                        : 'Choose a strong password (minimum 8 characters) for your account.'}
+              </p>
+            </BlurRevealText>
           </div>
 
-          {errorMessage && (
-            <div className="mb-5">
-              <AlertBanner
-                tone="error"
-                message={errorMessage}
-                actionLayout="stacked"
-                action={
-                  isProxyError ? (
-                    <a
-                      href={window.location.href}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1.5 rounded-lg border border-red-300/40 bg-red-500/25 px-3.5 py-2 text-xs font-semibold text-white hover:bg-red-500/35 transition-colors"
-                    >
-                      <span>Open ReeView in New Tab</span>
-                      <ExternalLink className="h-3.5 w-3.5" aria-hidden="true" />
-                    </a>
-                  ) : undefined
-                }
-              />
-            </div>
-          )}
-
-          {infoMessage && (
-            <div className="mb-5">
-              <AlertBanner tone="success" message={infoMessage} />
-            </div>
-          )}
-
-          {otpChallenge ? (
-            <form onSubmit={handleVerifyOtp} className="space-y-4">
-              <div>
-                <label htmlFor="auth-otp-code" className="block text-xs font-medium text-slate-300 mb-1.5">
-                  6-Digit Verification Code
-                </label>
-                <div className="relative">
-                  <ShieldCheck className="h-4 w-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" aria-hidden="true" />
-                  <input
-                    id="auth-otp-code"
-                    type="text"
-                    inputMode="numeric"
-                    autoComplete="one-time-code"
-                    pattern="[0-9]{6}"
-                    maxLength={6}
-                    required
-                    autoFocus
-                    value={otpCode}
-                    onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                    placeholder="000000"
-                    className="w-full h-12 px-10 rounded-xl rv-input-solid font-mono text-lg tracking-[0.35em] text-center"
-                  />
-                </div>
+          <AnimatePresence>
+            {errorMessage && (
+              <div className="mb-5">
+                <AlertBanner
+                  key={errorMessage}
+                  tone="error"
+                  message={errorMessage}
+                  actionLayout="stacked"
+                  action={
+                    isProxyError ? (
+                      <a
+                        href={window.location.href}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1.5 rounded-lg border border-red-300/40 bg-red-500/25 px-3.5 py-2 text-xs font-semibold text-white hover:bg-red-500/35 active:scale-[0.98] transition-all duration-150"
+                      >
+                        <span>Open ReeView in New Tab</span>
+                        <ExternalLink className="h-3.5 w-3.5" aria-hidden="true" />
+                      </a>
+                    ) : undefined
+                  }
+                />
               </div>
+            )}
 
-              <ActionButton
-                type="submit"
-                variant="primary"
-                size="lg"
-                disabled={busyProvider !== null || otpCode.length !== 6}
-                className="w-full"
+            {infoMessage && (
+              <div className="mb-5">
+                <AlertBanner key={infoMessage} tone="success" message={infoMessage} />
+              </div>
+            )}
+          </AnimatePresence>
+
+          <AnimatePresence mode="wait">
+            {otpChallenge ? (
+              <motion.form
+                key={`otp-${otpChallenge.challengeId}`}
+                initial={reduced ? { opacity: 1 } : { opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={reduced ? { opacity: 0 } : { opacity: 0, y: -6 }}
+                transition={{ duration: reduced ? 0.01 : 0.2, ease: RV_EASE }}
+                onSubmit={handleVerifyOtp}
+                className="space-y-4"
               >
-                {busyProvider === 'password'
-                  ? 'Verifying...'
-                  : otpChallenge.purpose === 'register'
-                    ? 'Verify & Create Account'
-                    : 'Verify & Sign In'}
-              </ActionButton>
+                <div>
+                  <label htmlFor="auth-otp-code" className="block text-xs font-medium text-slate-300 mb-1.5">
+                    6-Digit Verification Code
+                  </label>
+                  <div className="relative">
+                    <ShieldCheck className="h-4 w-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" aria-hidden="true" />
+                    <input
+                      id="auth-otp-code"
+                      type="text"
+                      inputMode="numeric"
+                      autoComplete="one-time-code"
+                      pattern="[0-9]{6}"
+                      maxLength={6}
+                      required
+                      autoFocus
+                      value={otpCode}
+                      onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                      placeholder="000000"
+                      className="w-full h-12 px-10 rounded-xl rv-input-solid font-mono text-lg tracking-[0.35em] text-center"
+                    />
+                  </div>
+                </div>
 
-              <div className="flex items-center justify-between pt-2 text-xs">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setOtpChallenge(null);
-                    setOtpCode('');
-                    setResendCountdown(0);
-                    setErrorMessage(null);
-                    setInfoMessage(null);
-                  }}
-                  className="inline-flex items-center gap-1.5 font-medium text-slate-300 hover:text-white cursor-pointer"
+                <ActionButton
+                  type="submit"
+                  variant="primary"
+                  size="lg"
+                  disabled={busyProvider !== null || otpCode.length !== 6}
+                  className="w-full"
                 >
-                  <ArrowLeft className="h-3.5 w-3.5" aria-hidden="true" />
-                  <span>Use a different email</span>
-                </button>
+                  {busyProvider === 'password'
+                    ? 'Verifying...'
+                    : otpChallenge.purpose === 'register'
+                      ? 'Verify & Create Account'
+                      : 'Verify & Sign In'}
+                </ActionButton>
 
-                <button
-                  type="button"
-                  disabled={resendCountdown > 0 || busyProvider !== null}
-                  onClick={handleResendOtp}
-                  className="inline-flex items-center gap-1.5 font-medium text-indigo-300 hover:text-indigo-200 disabled:text-slate-500 disabled:cursor-not-allowed cursor-pointer"
-                >
-                  <RotateCw className="h-3.5 w-3.5" aria-hidden="true" />
-                  <span>
-                    {resendCountdown > 0 ? `Resend in ${resendCountdown}s` : 'Resend code'}
-                  </span>
-                </button>
-              </div>
-            </form>
-          ) : (
-            <>
+                <div className="flex items-center justify-between pt-2 text-xs">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setOtpChallenge(null);
+                      setOtpCode('');
+                      setResendCountdown(0);
+                      setErrorMessage(null);
+                      setInfoMessage(null);
+                    }}
+                    className="inline-flex items-center gap-1.5 font-medium text-slate-300 hover:text-white transition-colors cursor-pointer"
+                  >
+                    <ArrowLeft className="h-3.5 w-3.5" aria-hidden="true" />
+                    <span>Use a different email</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    disabled={resendCountdown > 0 || busyProvider !== null}
+                    onClick={handleResendOtp}
+                    className="inline-flex items-center gap-1.5 font-medium text-indigo-300 hover:text-indigo-200 disabled:text-slate-500 disabled:cursor-not-allowed transition-colors cursor-pointer"
+                  >
+                    <RotateCw className="h-3.5 w-3.5" aria-hidden="true" />
+                    <span>
+                      {resendCountdown > 0 ? `Resend in ${resendCountdown}s` : 'Resend code'}
+                    </span>
+                  </button>
+                </div>
+              </motion.form>
+            ) : (
+              <motion.div
+                key={`form-${mode}`}
+                initial={reduced ? { opacity: 1 } : { opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={reduced ? { opacity: 0 } : { opacity: 0, y: -6 }}
+                transition={{ duration: reduced ? 0.01 : 0.2, ease: RV_EASE }}
+              >
           {(mode === 'login' || mode === 'register') && (
             <>
               <SocialAuthButtons
@@ -694,9 +745,11 @@ export function AuthPage({
               <span>Back to Sign In</span>
             </button>
           )}
-            </>
-          )}
+              </motion.div>
+            )}
+          </AnimatePresence>
         </ElevatedGlassPanel>
+        </ScaleMaskReveal>
 
         {providerAvailability &&
           (!providerAvailability.googleConfigured || !providerAvailability.emailOtpConfigured) && (
@@ -718,6 +771,32 @@ export function AuthPage({
               )}
             </GlassPanel>
           )}
+
+        {onNavigateRoute && (
+          <div className="mt-5 flex items-center justify-center gap-4 text-xs text-slate-400">
+            <a
+              href="/privacy"
+              onClick={(e) => {
+                e.preventDefault();
+                onNavigateRoute('privacy');
+              }}
+              className="hover:text-slate-200 transition-colors rv-link-underline"
+            >
+              Privacy Policy
+            </a>
+            <span aria-hidden="true">·</span>
+            <a
+              href="/terms"
+              onClick={(e) => {
+                e.preventDefault();
+                onNavigateRoute('terms');
+              }}
+              className="hover:text-slate-200 transition-colors rv-link-underline"
+            >
+              Terms of Service
+            </a>
+          </div>
+        )}
       </div>
     </div>
   );

@@ -1,5 +1,7 @@
 import { useState } from 'react';
+import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
 import { GlassPanel } from './ui/GlassPrimitives.tsx';
+import { RV_EASE, RV_SPRING } from './ui/MotionPrimitives.tsx';
 
 type RubricVariableTab = 'informational' | 'entertainment' | 'trendiness' | 'relatable';
 
@@ -189,6 +191,7 @@ const RUBRIC_DATA: Record<
 export function MethodologyView() {
   const [selectedVar, setSelectedVar] = useState<RubricVariableTab>('informational');
   const current = RUBRIC_DATA[selectedVar];
+  const reduced = useReducedMotion();
 
   return (
     <section aria-label="Scoring Methodology and Rubric" className="space-y-6 rv-animate-in">
@@ -232,61 +235,80 @@ export function MethodologyView() {
                   { id: 'trendiness', label: 'C. Trendiness' },
                   { id: 'relatable', label: 'D. Relatable' },
                 ] as const
-              ).map((tab) => (
-                <button
-                  key={tab.id}
-                  type="button"
-                  role="tab"
-                  aria-selected={selectedVar === tab.id}
-                  onClick={() => setSelectedVar(tab.id)}
-                  className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors whitespace-nowrap shrink-0 cursor-pointer ${
-                    selectedVar === tab.id
-                      ? 'bg-indigo-600 text-white shadow-xs'
-                      : 'text-slate-400 hover:text-white'
-                  }`}
-                >
-                  {tab.label}
-                </button>
-              ))}
+              ).map((tab) => {
+                const selected = selectedVar === tab.id;
+                return (
+                  <button
+                    key={tab.id}
+                    type="button"
+                    role="tab"
+                    aria-selected={selected}
+                    onClick={() => setSelectedVar(tab.id)}
+                    className={`relative px-3 py-1.5 text-xs font-medium rounded-lg transition-colors duration-150 whitespace-nowrap shrink-0 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400 ${
+                      selected ? 'text-white' : 'text-slate-400 hover:text-white'
+                    }`}
+                  >
+                    {selected && (
+                      <motion.span
+                        layoutId="rv-rubric-tab"
+                        transition={reduced ? { duration: 0.01 } : RV_SPRING}
+                        className="absolute inset-0 rounded-lg bg-indigo-600 shadow-xs"
+                        aria-hidden="true"
+                      />
+                    )}
+                    <span className="relative z-10">{tab.label}</span>
+                  </button>
+                );
+              })}
             </div>
           </div>
 
-          <div className="mb-4 flex flex-wrap items-baseline gap-3 text-xs text-slate-400">
-            <span className="font-display text-sm font-semibold text-indigo-300">
-              {current.title}
-            </span>
-            <span aria-hidden="true">·</span>
-            <span className="tabular-nums">Survey Mean: {current.surveyMean}</span>
-            <span aria-hidden="true">·</span>
-            <span className="tabular-nums">
-              Correlation with Overall Brand Engagement: {current.correlation}
-            </span>
-          </div>
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={selectedVar}
+              initial={reduced ? { opacity: 1 } : { opacity: 0, y: 6 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={reduced ? { opacity: 0 } : { opacity: 0, y: -4 }}
+              transition={{ duration: reduced ? 0.01 : 0.18, ease: RV_EASE }}
+            >
+              <div className="mb-4 flex flex-wrap items-baseline gap-3 text-xs text-slate-400">
+                <span className="font-display text-sm font-semibold text-indigo-300">
+                  {current.title}
+                </span>
+                <span aria-hidden="true">·</span>
+                <span className="tabular-nums">Survey Mean: {current.surveyMean}</span>
+                <span aria-hidden="true">·</span>
+                <span className="tabular-nums">
+                  Correlation with Overall Brand Engagement: {current.correlation}
+                </span>
+              </div>
 
-          <div className="overflow-x-auto border border-white/10 rounded-xl bg-slate-950/45">
-            <table className="w-full text-left border-collapse">
-              <thead>
-                <tr className="bg-slate-950/70 border-b border-white/10 text-xs font-semibold text-slate-300">
-                  <th className="py-3 px-4 w-20">Rating</th>
-                  <th className="py-3 px-4">Interaction</th>
-                  <th className="py-3 px-4">Participation</th>
-                  <th className="py-3 px-4">Sharing</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-white/8 text-xs text-slate-300 leading-relaxed">
-                {current.rows.map((row) => (
-                  <tr key={row.rating} className="hover:bg-white/[0.02]">
-                    <td className="py-3.5 px-4 align-top font-mono font-bold text-white tabular-nums">
-                      {row.rating}
-                    </td>
-                    <td className="py-3.5 px-4 align-top">{row.interaction}</td>
-                    <td className="py-3.5 px-4 align-top">{row.participation}</td>
-                    <td className="py-3.5 px-4 align-top">{row.sharing}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+              <div className="overflow-x-auto border border-white/10 rounded-xl bg-slate-950/45">
+                <table className="w-full text-left border-collapse">
+                  <thead>
+                    <tr className="bg-slate-950/70 border-b border-white/10 text-xs font-semibold text-slate-300">
+                      <th className="py-3 px-4 w-20">Rating</th>
+                      <th className="py-3 px-4">Interaction</th>
+                      <th className="py-3 px-4">Participation</th>
+                      <th className="py-3 px-4">Sharing</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-white/8 text-xs text-slate-300 leading-relaxed">
+                    {current.rows.map((row) => (
+                      <tr key={row.rating} className="hover:bg-white/[0.02] transition-colors">
+                        <td className="py-3.5 px-4 align-top font-mono font-bold text-white tabular-nums">
+                          {row.rating}
+                        </td>
+                        <td className="py-3.5 px-4 align-top">{row.interaction}</td>
+                        <td className="py-3.5 px-4 align-top">{row.participation}</td>
+                        <td className="py-3.5 px-4 align-top">{row.sharing}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </motion.div>
+          </AnimatePresence>
         </div>
 
         {/* Section III: Scoring & Computation */}

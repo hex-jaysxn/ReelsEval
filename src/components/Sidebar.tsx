@@ -1,7 +1,9 @@
 import { BookOpen, Clock, Film, LogOut, Settings, X } from 'lucide-react';
+import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
 import type { AuthUser } from '../types/auth.ts';
 import type { ReelEvaluation } from '../types/evaluation.ts';
 import { ReeViewMark } from './ui/GlassPrimitives.tsx';
+import { RV_EASE, RV_SPRING } from './ui/MotionPrimitives.tsx';
 
 export type ActiveTab = 'evaluator' | 'history' | 'methodology' | 'settings';
 
@@ -28,6 +30,7 @@ export function Sidebar({
   user,
   onLogout,
 }: SidebarProps) {
+  const reduced = useReducedMotion();
   const navItems: { id: ActiveTab; label: string; icon: typeof Film; count?: number }[] = [
     { id: 'evaluator', label: 'Video Evaluator', icon: Film },
     { id: 'history', label: 'Evaluation History', icon: Clock, count: history.length },
@@ -44,7 +47,7 @@ export function Sidebar({
             onSelectTab('evaluator');
             onCloseMobile();
           }}
-          className="flex items-center gap-2.5 text-left cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400 rounded-lg"
+          className="group flex items-center gap-2.5 text-left cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400 rounded-lg"
         >
           <ReeViewMark size="sm" />
           <span className="font-display text-lg font-bold tracking-tight text-white whitespace-nowrap shrink-0">
@@ -56,7 +59,7 @@ export function Sidebar({
           type="button"
           onClick={onCloseMobile}
           aria-label="Close navigation menu"
-          className="lg:hidden flex h-10 w-10 items-center justify-center rounded-lg text-slate-400 hover:bg-white/10 hover:text-white cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400"
+          className="lg:hidden flex h-10 w-10 items-center justify-center rounded-lg text-slate-400 hover:bg-white/10 hover:text-white active:scale-95 transition-all duration-150 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400"
         >
           <X className="h-5 w-5" aria-hidden="true" />
         </button>
@@ -75,21 +78,31 @@ export function Sidebar({
                 onCloseMobile();
               }}
               aria-current={isActive ? 'page' : undefined}
-              className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-sm font-medium transition-colors whitespace-nowrap cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400 ${
+              className={`relative w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-sm font-medium transition-colors duration-150 whitespace-nowrap cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400 ${
                 isActive
-                  ? 'bg-indigo-500/20 text-white border border-indigo-400/30 shadow-xs'
+                  ? 'text-white'
                   : 'text-slate-300 border border-transparent hover:bg-white/6 hover:text-white'
               }`}
             >
-              <span className="flex items-center gap-3">
+              {isActive && (
+                <motion.span
+                  layoutId="rv-sidebar-active-pill"
+                  transition={reduced ? { duration: 0.01 } : RV_SPRING}
+                  className="absolute inset-0 rounded-xl bg-indigo-500/20 border border-indigo-400/30 shadow-xs"
+                  aria-hidden="true"
+                />
+              )}
+              <span className="relative z-10 flex items-center gap-3">
                 <Icon
-                  className={`h-4 w-4 shrink-0 ${isActive ? 'text-indigo-300' : 'text-slate-400'}`}
+                  className={`h-4 w-4 shrink-0 transition-colors duration-150 ${
+                    isActive ? 'text-indigo-300' : 'text-slate-400'
+                  }`}
                   aria-hidden="true"
                 />
                 <span>{item.label}</span>
               </span>
               {typeof item.count === 'number' && item.count > 0 && (
-                <span className="font-mono text-xs tabular-nums text-slate-300 bg-white/8 px-1.5 py-0.5 rounded-md">
+                <span className="relative z-10 font-mono text-xs tabular-nums text-slate-300 bg-white/8 px-1.5 py-0.5 rounded-md">
                   {item.count}
                 </span>
               )}
@@ -198,18 +211,30 @@ export function Sidebar({
         {sidebarContent}
       </aside>
 
-      {mobileOpen && (
-        <div className="fixed inset-0 z-50 lg:hidden no-print">
-          <div
-            className="fixed inset-0 bg-slate-950/75 backdrop-blur-xs"
-            onClick={onCloseMobile}
-            aria-hidden="true"
-          />
-          <div className="fixed inset-y-0 left-0 w-72 max-w-[85vw] shadow-2xl">
-            {sidebarContent}
+      <AnimatePresence>
+        {mobileOpen && (
+          <div className="fixed inset-0 z-50 lg:hidden no-print">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: reduced ? 0.01 : 0.2, ease: 'easeOut' }}
+              className="fixed inset-0 bg-slate-950/75 backdrop-blur-xs"
+              onClick={onCloseMobile}
+              aria-hidden="true"
+            />
+            <motion.div
+              initial={reduced ? { x: 0 } : { x: '-100%' }}
+              animate={{ x: 0 }}
+              exit={reduced ? { opacity: 0 } : { x: '-100%' }}
+              transition={{ duration: reduced ? 0.01 : 0.24, ease: RV_EASE }}
+              className="fixed inset-y-0 left-0 w-72 max-w-[85vw] shadow-2xl"
+            >
+              {sidebarContent}
+            </motion.div>
           </div>
-        </div>
-      )}
+        )}
+      </AnimatePresence>
     </>
   );
 }

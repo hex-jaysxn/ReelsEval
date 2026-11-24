@@ -23,11 +23,13 @@
   --rv-accent: #6366f1;
   --rv-accent-teal: #14b8a6;
   --rv-ease: cubic-bezier(0.16, 1, 0.3, 1);
+  --rv-ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 @layer base {
   html {
     color-scheme: dark;
+    scroll-behavior: smooth;
   }
 
   body {
@@ -42,38 +44,143 @@
   }
 }
 
-/* Dark Atmospheric Environment + Ambient Lighting */
+/* Dark Atmospheric Environment */
 .rv-atmosphere {
   position: relative;
+  isolation: isolate;
+  overflow-x: clip;
   background-color: var(--rv-bg-base);
   background-image:
-    radial-gradient(64rem 42rem at 12% -6%, rgba(99, 102, 241, 0.16), transparent 62%),
-    radial-gradient(52rem 38rem at 90% 8%, rgba(14, 165, 233, 0.11), transparent 60%),
-    radial-gradient(48rem 34rem at 55% 100%, rgba(20, 184, 166, 0.08), transparent 65%);
+    radial-gradient(64rem 42rem at 12% -6%, rgba(99, 102, 241, 0.14), transparent 62%),
+    radial-gradient(52rem 38rem at 90% 8%, rgba(14, 165, 233, 0.1), transparent 60%),
+    radial-gradient(48rem 34rem at 55% 100%, rgba(20, 184, 166, 0.07), transparent 65%);
+}
+
+@keyframes rv-ambient-breathe {
+  0% {
+    opacity: 0.55;
+  }
+  100% {
+    opacity: 0.92;
+  }
+}
+
+.rv-atmosphere::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -2;
+  pointer-events: none;
+  background-image:
+    radial-gradient(46rem 32rem at 18% 12%, rgba(99, 102, 241, 0.09), transparent 64%),
+    radial-gradient(42rem 30rem at 82% 24%, rgba(56, 189, 248, 0.07), transparent 62%),
+    radial-gradient(38rem 28rem at 48% 88%, rgba(20, 184, 166, 0.06), transparent 65%);
+}
+
+.rv-atmosphere::after {
+  content: '';
+  position: absolute;
+  top: -120px;
+  left: 12%;
+  width: 640px;
+  height: 360px;
+  z-index: -1;
+  pointer-events: none;
+  background: radial-gradient(closest-side, rgba(99, 102, 241, 0.14), transparent 72%);
+  opacity: 0.85;
 }
 
 /* Glass Hierarchy */
 .rv-glass-primary {
   background: var(--rv-glass-primary-bg);
-  backdrop-filter: blur(14px) saturate(140%);
-  -webkit-backdrop-filter: blur(14px) saturate(140%);
+  backdrop-filter: blur(10px) saturate(135%);
+  -webkit-backdrop-filter: blur(10px) saturate(135%);
   border: 1px solid var(--rv-glass-border);
   box-shadow: var(--rv-glass-highlight), var(--rv-shadow-glass);
+  transition: border-color 200ms var(--rv-ease), box-shadow 200ms var(--rv-ease), transform 200ms var(--rv-ease);
 }
 
 .rv-glass-elevated {
   background: var(--rv-glass-elevated-bg);
-  backdrop-filter: blur(20px) saturate(155%);
-  -webkit-backdrop-filter: blur(20px) saturate(155%);
+  backdrop-filter: blur(12px) saturate(145%);
+  -webkit-backdrop-filter: blur(12px) saturate(145%);
   border: 1px solid var(--rv-glass-border-strong);
   box-shadow: var(--rv-glass-highlight), var(--rv-shadow-elevated);
+  transition: border-color 200ms var(--rv-ease), box-shadow 200ms var(--rv-ease);
 }
 
 .rv-glass-nav {
   background: var(--rv-glass-nav-bg);
-  backdrop-filter: blur(16px) saturate(150%);
-  -webkit-backdrop-filter: blur(16px) saturate(150%);
+  backdrop-filter: blur(10px) saturate(140%);
+  -webkit-backdrop-filter: blur(10px) saturate(140%);
   border-color: var(--rv-glass-border);
+  transition: background-color 240ms var(--rv-ease), border-color 240ms var(--rv-ease), box-shadow 240ms var(--rv-ease);
+}
+
+.rv-glass-nav-scrolled {
+  background: rgba(7, 11, 20, 0.88);
+  border-color: rgba(148, 163, 184, 0.24);
+  box-shadow: 0 12px 32px -12px rgba(2, 6, 23, 0.78);
+}
+
+.rv-card-hover {
+  transition: transform 220ms var(--rv-ease), border-color 220ms var(--rv-ease), box-shadow 220ms var(--rv-ease);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .rv-card-hover:hover {
+    transform: translateY(-2px);
+    border-color: rgba(148, 163, 184, 0.3);
+    box-shadow: var(--rv-glass-highlight), 0 22px 46px -18px rgba(2, 6, 23, 0.82), 0 0 0 1px rgba(99, 102, 241, 0.14);
+  }
+}
+
+.rv-card-hover:active {
+  transform: scale(0.992);
+}
+
+.rv-btn-sheen {
+  position: relative;
+  overflow: hidden;
+}
+
+.rv-btn-sheen::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(110deg, transparent 20%, rgba(255, 255, 255, 0.16) 50%, transparent 80%);
+  transform: translateX(-120%);
+  transition: transform 520ms var(--rv-ease);
+  pointer-events: none;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .rv-btn-sheen:not(:disabled):hover::before {
+    transform: translateX(120%);
+  }
+}
+
+.rv-link-underline {
+  position: relative;
+}
+
+.rv-link-underline::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -2px;
+  height: 1.5px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, rgba(129, 140, 248, 0.9), rgba(56, 189, 248, 0.9));
+  transform: scaleX(0);
+  transform-origin: left center;
+  transition: transform 220ms var(--rv-ease);
+}
+
+.rv-link-underline:hover::after,
+.rv-link-underline:focus-visible::after {
+  transform: scaleX(1);
 }
 
 /* Solid High-Contrast Form & Interactive Controls */
@@ -81,11 +188,15 @@
   background-color: #0b1220;
   border: 1px solid rgba(148, 163, 184, 0.24);
   color: #f8fafc;
-  transition: border-color 160ms var(--rv-ease), box-shadow 160ms var(--rv-ease), background-color 160ms var(--rv-ease);
+  transition: border-color 160ms var(--rv-ease), box-shadow 160ms var(--rv-ease), background-color 160ms var(--rv-ease), transform 160ms var(--rv-ease);
 }
 
 .rv-input-solid::placeholder {
   color: #64748b;
+}
+
+.rv-input-solid:hover:not(:disabled):not(:focus) {
+  border-color: rgba(148, 163, 184, 0.4);
 }
 
 .rv-input-solid:focus {
@@ -104,7 +215,7 @@
   font-variant-numeric: tabular-nums;
 }
 
-/* Subtle Entrance Transition */
+/* Subtle Entrance & Skeleton Shimmer */
 @keyframes rv-fade-up {
   from {
     opacity: 0;
@@ -120,7 +231,51 @@
   animation: rv-fade-up 240ms var(--rv-ease) both;
 }
 
+@keyframes rv-shimmer {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+.rv-skeleton-shimmer {
+  position: relative;
+  overflow: hidden;
+}
+
+.rv-skeleton-shimmer::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(148, 163, 184, 0.12) 45%,
+    rgba(226, 232, 240, 0.16) 50%,
+    rgba(148, 163, 184, 0.12) 55%,
+    transparent 100%
+  );
+  animation: rv-shimmer 1.6s var(--rv-ease-in-out) infinite;
+}
+
 @media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto !important;
+  }
+
+  .rv-atmosphere::before,
+  .rv-atmosphere::after,
+  .rv-skeleton-shimmer::after {
+    animation: none !important;
+  }
+
+  .rv-card-hover:hover {
+    transform: none !important;
+  }
+
   *,
   *::before,
   *::after {

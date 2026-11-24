@@ -76,7 +76,7 @@ export function parseAuthApiResponse(params: {
       ok: false,
       error: {
         code: 'SESSION_OR_PROXY_HTML',
-        message: `Authentication received an HTML page instead of JSON (HTTP ${status}). Your preview session may have refreshed—please reload the page and try again.`,
+        message: `Your browser blocked preview session cookies inside this embedded frame, so the hosting proxy returned an HTML page instead of JSON (HTTP ${status}). Open ReeView in a new browser tab (or allow third-party cookies) and try again.`,
       },
     };
   }

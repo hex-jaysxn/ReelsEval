@@ -156,14 +156,25 @@ interface AlertBannerProps {
   message: string;
   detail?: string;
   action?: ReactNode;
+  actionLayout?: 'inline' | 'stacked';
 }
 
-export function AlertBanner({ tone, title, message, detail, action }: AlertBannerProps) {
+export function AlertBanner({
+  tone,
+  title,
+  message,
+  detail,
+  action,
+  actionLayout = 'inline',
+}: AlertBannerProps) {
   const isError = tone === 'error';
+  const isStacked = actionLayout === 'stacked';
   return (
     <div
       role={isError ? 'alert' : 'status'}
-      className={`rounded-xl border px-4 py-3.5 flex flex-col sm:flex-row sm:items-start justify-between gap-3 ${
+      className={`rounded-xl border px-4 py-3.5 flex flex-col ${
+        isStacked ? 'gap-3' : 'sm:flex-row sm:items-start justify-between gap-3'
+      } ${
         isError
           ? 'bg-red-950/75 border-red-500/40 text-red-100'
           : 'bg-emerald-950/75 border-emerald-500/40 text-emerald-100'
@@ -187,7 +198,7 @@ export function AlertBanner({ tone, title, message, detail, action }: AlertBanne
           )}
         </div>
       </div>
-      {action && <div className="shrink-0">{action}</div>}
+      {action && <div className={isStacked ? 'pl-7' : 'shrink-0'}>{action}</div>}
     </div>
   );
 }

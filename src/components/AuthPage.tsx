@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react';
-import { ArrowLeft, KeyRound, Lock, Mail, RotateCw, ShieldCheck, User } from 'lucide-react';
+import { ArrowLeft, ExternalLink, KeyRound, Lock, Mail, RotateCw, ShieldCheck, User } from 'lucide-react';
 import type { AuthProviderAvailability, AuthUser } from '../types/auth.ts';
 import { parseAuthApiResponse } from '../utils/authResponse.ts';
 import { launchOAuthPopup } from '../utils/oauthPopup.ts';
@@ -18,6 +18,7 @@ interface AuthPageProps {
   initialMode?: 'login' | 'register';
   initialResetToken?: string | null;
   initialAuthError?: string | null;
+  proxyBlockedNotice?: string | null;
   providerAvailability: AuthProviderAvailability | null;
   onAuthenticated: (user: AuthUser, sessionToken?: string) => void;
   onBackToLanding?: () => void;
@@ -27,6 +28,7 @@ export function AuthPage({
   initialMode = 'login',
   initialResetToken,
   initialAuthError,
+  proxyBlockedNotice,
   providerAvailability,
   onAuthenticated,
   onBackToLanding,
@@ -43,8 +45,20 @@ export function AuthPage({
   const [resendCountdown, setResendCountdown] = useState(0);
 
   const [busyProvider, setBusyProvider] = useState<'google' | 'password' | null>(null);
-  const [errorMessage, setErrorMessage] = useState<string | null>(initialAuthError || null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(
+    initialAuthError || proxyBlockedNotice || null
+  );
+  const [isProxyError, setIsProxyError] = useState<boolean>(
+    Boolean(!initialAuthError && proxyBlockedNotice)
+  );
   const [infoMessage, setInfoMessage] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!initialAuthError && proxyBlockedNotice) {
+      setErrorMessage((prev) => prev || proxyBlockedNotice);
+      setIsProxyError(true);
+    }
+  }, [initialAuthError, proxyBlockedNotice]);
 
   useEffect(() => {
     if (initialResetToken) {
@@ -74,12 +88,14 @@ export function AuthPage({
     setOtpChallenge(null);
     setOtpCode('');
     setResendCountdown(0);
-    setErrorMessage(null);
+    setErrorMessage(proxyBlockedNotice || null);
+    setIsProxyError(Boolean(proxyBlockedNotice));
     setInfoMessage(null);
   }
 
   async function handleOAuthSignIn(provider: 'google') {
     setErrorMessage(null);
+    setIsProxyError(false);
     setInfoMessage(null);
     setBusyProvider(provider);
 
@@ -117,6 +133,7 @@ export function AuthPage({
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     setErrorMessage(null);
+    setIsProxyError(false);
     setInfoMessage(null);
 
     if (mode === 'forgot') {
@@ -221,6 +238,7 @@ export function AuthPage({
 
       if (!parsed.ok) {
         setErrorMessage(parsed.error.message);
+        setIsProxyError(parsed.error.code === 'SESSION_OR_PROXY_HTML');
         return;
       }
 
@@ -435,7 +453,24 @@ export function AuthPage({
 
           {errorMessage && (
             <div className="mb-5">
-              <AlertBanner tone="error" message={errorMessage} />
+              <AlertBanner
+                tone="error"
+                message={errorMessage}
+                actionLayout="stacked"
+                action={
+                  isProxyError ? (
+                    <a
+                      href={window.location.href}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1.5 rounded-lg border border-red-300/40 bg-red-500/25 px-3.5 py-2 text-xs font-semibold text-white hover:bg-red-500/35 transition-colors"
+                    >
+                      <span>Open ReeView in New Tab</span>
+                      <ExternalLink className="h-3.5 w-3.5" aria-hidden="true" />
+                    </a>
+                  ) : undefined
+                }
+              />
             </div>
           )}
 

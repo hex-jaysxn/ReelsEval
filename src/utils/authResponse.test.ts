@@ -30,6 +30,7 @@ test('parseAuthApiResponse handles OTP, user session, JSON error, HTML 200 proxy
   if (!htmlProxy200.ok) {
     assert.equal(htmlProxy200.error.code, 'SESSION_OR_PROXY_HTML');
     assert.match(htmlProxy200.error.message, /HTML page instead of JSON/i);
+    assert.match(htmlProxy200.error.message, /new browser tab/i);
   }
 
   const empty200 = parseAuthApiResponse({

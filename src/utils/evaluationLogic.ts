@@ -482,7 +482,7 @@ export function parseEvaluationApiResponse(params: {
       error: {
         code: 'SESSION_OR_PROXY_HTML',
         message:
-          'The evaluation endpoint returned an HTML page instead of a JSON response (usually caused by an expired preview session after updating Secrets or an auth/proxy redirect). Please refresh the page and try analyzing again.',
+          'Your browser blocked preview session cookies inside this embedded frame, so the hosting proxy returned an HTML page instead of JSON. Open ReeView in a new browser tab (or allow third-party cookies) and try again.',
       },
     };
   }

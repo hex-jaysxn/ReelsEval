@@ -7,6 +7,7 @@ import type {
   ReelVideoMetadata,
 } from './types/evaluation.ts';
 import { parseEvaluationApiResponse } from './utils/evaluationLogic.ts';
+import { parseAuthApiResponse } from './utils/authResponse.ts';
 import { Sidebar, type ActiveTab } from './components/Sidebar.tsx';
 import { UploadStage } from './components/UploadStage.tsx';
 import { ProcessingState } from './components/ProcessingState.tsx';
@@ -28,6 +29,7 @@ export default function App() {
   const [authLoading, setAuthLoading] = useState(true);
   const [providerAvailability, setProviderAvailability] =
     useState<AuthProviderAvailability | null>(null);
+  const [proxyBlockedNotice, setProxyBlockedNotice] = useState<string | null>(null);
 
   const [initialParams] = useState(() => {
     const params = new URLSearchParams(window.location.search);
@@ -102,12 +104,23 @@ export default function App() {
       try {
         const providersRes = await fetch('/api/auth/providers', {
           credentials: 'same-origin',
+          headers: { Accept: 'application/json' },
         });
-        const providersData = (await providersRes.json().catch(() => null)) as
-          | AuthProviderAvailability
-          | null;
-        if (active && providersData) {
-          setProviderAvailability(providersData);
+        const providersParsed = parseAuthApiResponse({
+          ok: providersRes.ok,
+          status: providersRes.status,
+          contentType: providersRes.headers.get('content-type'),
+          redirected: providersRes.redirected,
+          rawBody: await providersRes.text(),
+        });
+        if (active && providersParsed.ok) {
+          setProviderAvailability(providersParsed.data as unknown as AuthProviderAvailability);
+        } else if (
+          active &&
+          !providersParsed.ok &&
+          providersParsed.error.code === 'SESSION_OR_PROXY_HTML'
+        ) {
+          setProxyBlockedNotice(providersParsed.error.message);
         }
 
         if (initialParams.oauthHandoff) {
@@ -365,6 +378,7 @@ export default function App() {
         initialMode={authInitialMode}
         initialResetToken={initialParams.resetToken}
         initialAuthError={initialParams.authError}
+        proxyBlockedNotice={proxyBlockedNotice}
         providerAvailability={providerAvailability}
         onAuthenticated={handleAuthenticated}
         onBackToLanding={() => setUnauthView('landing')}

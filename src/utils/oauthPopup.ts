@@ -1,7 +1,7 @@
 import type { AuthUser } from '../types/auth.ts';
 
 export async function launchOAuthPopup(params: {
-  provider: 'google' | 'apple';
+  provider: 'google';
   mode: 'login' | 'link';
   sessionToken: string | null;
   onSuccess: (result: { user?: AuthUser; sessionToken?: string }) => void;
@@ -28,10 +28,7 @@ export async function launchOAuthPopup(params: {
     } | null;
 
     if (!res.ok || !data?.url) {
-      onError(
-        data?.error?.message ||
-          `Could not initialize ${provider === 'google' ? 'Google' : 'Apple'} sign-in.`
-      );
+      onError(data?.error?.message || 'Could not initialize Google sign-in.');
       return () => {};
     }
     authUrl = data.url;

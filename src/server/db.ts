@@ -10,7 +10,7 @@ import {
   normalizeEmail,
 } from './authLogic.ts';
 
-export type OAuthProviderName = 'google' | 'apple';
+export type OAuthProviderName = 'google';
 
 interface DbUserRow {
   id: string;
@@ -241,7 +241,6 @@ export class AppDatabase {
     provider: OAuthProviderName;
     providerUserId: string;
     providerEmail: string | null;
-    isPrivateRelay: boolean;
     displayName?: string | null;
     avatarUrl?: string | null;
   }): void {
@@ -255,13 +254,12 @@ export class AppDatabase {
       this.db
         .prepare(
           `UPDATE oauth_identities
-           SET provider_user_id = ?, provider_email = ?, is_private_relay = ?, display_name = ?, avatar_url = ?
+           SET provider_user_id = ?, provider_email = ?, is_private_relay = 0, display_name = ?, avatar_url = ?
            WHERE id = ?`
         )
         .run(
           params.providerUserId,
           params.providerEmail ? normalizeEmail(params.providerEmail) : null,
-          params.isPrivateRelay ? 1 : 0,
           params.displayName ?? null,
           params.avatarUrl ?? null,
           existingForUserProvider.id
@@ -273,7 +271,7 @@ export class AppDatabase {
       .prepare(
         `INSERT INTO oauth_identities
          (id, user_id, provider, provider_user_id, provider_email, is_private_relay, display_name, avatar_url, created_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+         VALUES (?, ?, ?, ?, ?, 0, ?, ?, ?)`
       )
       .run(
         crypto.randomUUID(),
@@ -281,7 +279,6 @@ export class AppDatabase {
         params.provider,
         params.providerUserId,
         params.providerEmail ? normalizeEmail(params.providerEmail) : null,
-        params.isPrivateRelay ? 1 : 0,
         params.displayName ?? null,
         params.avatarUrl ?? null,
         new Date().toISOString()
@@ -312,11 +309,11 @@ export class AppDatabase {
     }
 
     for (const identity of identities) {
+      if (identity.provider !== 'google') continue;
       connectedProviders.push({
         provider: identity.provider,
         email: identity.provider_email,
         displayName: identity.display_name,
-        isPrivateRelay: Boolean(identity.is_private_relay),
         connectedAt: identity.created_at,
       });
     }

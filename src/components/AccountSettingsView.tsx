@@ -36,7 +36,6 @@ export function AccountSettingsView({
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   const googleConnection = user.connectedProviders.find((p) => p.provider === 'google');
-  const appleConnection = user.connectedProviders.find((p) => p.provider === 'apple');
 
   const authHeaders: Record<string, string> = {
     'Content-Type': 'application/json',
@@ -126,7 +125,7 @@ export function AccountSettingsView({
     }
   }
 
-  async function handleConnectProvider(provider: 'google' | 'apple') {
+  async function handleConnectProvider(provider: 'google') {
     setErrorMessage(null);
     setSuccessMessage(null);
     setBusyAction(`connect_${provider}`);
@@ -138,9 +137,7 @@ export function AccountSettingsView({
       onSuccess: async () => {
         await refreshProfile();
         setBusyAction(null);
-        setSuccessMessage(
-          `${provider === 'google' ? 'Google' : 'Apple'} account connected.`
-        );
+        setSuccessMessage('Google account connected.');
       },
       onError: (msg) => {
         setBusyAction(null);
@@ -149,7 +146,7 @@ export function AccountSettingsView({
     });
   }
 
-  async function handleDisconnectProvider(provider: 'google' | 'apple') {
+  async function handleDisconnectProvider(provider: 'google') {
     setErrorMessage(null);
     setSuccessMessage(null);
     setBusyAction(`disconnect_${provider}`);
@@ -168,9 +165,7 @@ export function AccountSettingsView({
         setErrorMessage(data?.error?.message || 'Could not disconnect provider.');
       } else {
         onUserUpdated(data.user);
-        setSuccessMessage(
-          `${provider === 'google' ? 'Google' : 'Apple'} sign-in disconnected.`
-        );
+        setSuccessMessage('Google sign-in disconnected.');
       }
     } catch {
       setErrorMessage('Network error while disconnecting provider.');
@@ -277,60 +272,19 @@ export function AccountSettingsView({
             )}
           </div>
 
-          {/* Apple */}
-          <div className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <div>
-              <p className="text-sm font-semibold text-white">Apple</p>
-              <p className="text-xs text-slate-400">
-                {appleConnection
-                  ? `Connected as ${appleConnection.email || user.email}${
-                      appleConnection.isPrivateRelay ? ' (Private Relay)' : ''
-                    }`
-                  : 'Sign in with Apple (supports Private Relay email)'}
-              </p>
-            </div>
-            {appleConnection ? (
-              <ActionButton
-                variant="secondary"
-                size="sm"
-                disabled={busyAction !== null}
-                onClick={() => handleDisconnectProvider('apple')}
-              >
-                <Unlink className="h-3.5 w-3.5" aria-hidden="true" />
-                <span>Disconnect</span>
-              </ActionButton>
-            ) : (
-              <ActionButton
-                variant="primary"
-                size="sm"
-                disabled={busyAction !== null}
-                onClick={() => handleConnectProvider('apple')}
-              >
-                <Link2 className="h-3.5 w-3.5" aria-hidden="true" />
-                <span>{busyAction === 'connect_apple' ? 'Connecting...' : 'Connect Apple'}</span>
-              </ActionButton>
-            )}
-          </div>
         </div>
 
-        {providerAvailability &&
-          (!providerAvailability.googleConfigured || !providerAvailability.appleConfigured) && (
-            <div className="rounded-xl bg-slate-950/65 border border-white/10 p-4 text-xs text-slate-300 space-y-1.5">
-              <p className="font-semibold text-white">OAuth Callback &amp; Environment Reference</p>
-              <p>
-                Google Callback URL:{' '}
-                <code className="font-mono text-indigo-300 break-all">
-                  {providerAvailability.callbackUrls.google}
-                </code>
-              </p>
-              <p>
-                Apple Callback URL:{' '}
-                <code className="font-mono text-indigo-300 break-all">
-                  {providerAvailability.callbackUrls.apple}
-                </code>
-              </p>
-            </div>
-          )}
+        {providerAvailability && !providerAvailability.googleConfigured && (
+          <div className="rounded-xl bg-slate-950/65 border border-white/10 p-4 text-xs text-slate-300 space-y-1.5">
+            <p className="font-semibold text-white">OAuth Callback &amp; Environment Reference</p>
+            <p>
+              Google Callback URL:{' '}
+              <code className="font-mono text-indigo-300 break-all">
+                {providerAvailability.callbackUrls.google}
+              </code>
+            </p>
+          </div>
+        )}
       </GlassPanel>
 
       {/* Profile & Password Management */}

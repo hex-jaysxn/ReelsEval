@@ -71,15 +71,10 @@ export function generatePkceChallenge(verifier: string): string {
   return crypto.createHash('sha256').update(verifier).digest('base64url');
 }
 
-export function isApplePrivateRelayEmail(email: string | null | undefined): boolean {
-  if (!email) return false;
-  return email.trim().toLowerCase().endsWith('@privaterelay.appleid.com');
-}
-
 export function canDisconnectProvider(params: {
   hasPassword: boolean;
-  connectedOAuthProviders: ('google' | 'apple')[];
-  providerToRemove: 'google' | 'apple';
+  connectedOAuthProviders: 'google'[];
+  providerToRemove: 'google';
 }): { allowed: boolean; reason?: string } {
   const remainingOAuth = params.connectedOAuthProviders.filter(
     (p) => p !== params.providerToRemove

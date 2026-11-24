@@ -31,7 +31,7 @@ export function AuthPage({
   const [confirmPassword, setConfirmPassword] = useState('');
   const [resetToken, setResetToken] = useState(initialResetToken || '');
 
-  const [busyProvider, setBusyProvider] = useState<'google' | 'apple' | 'password' | null>(null);
+  const [busyProvider, setBusyProvider] = useState<'google' | 'password' | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(initialAuthError || null);
   const [infoMessage, setInfoMessage] = useState<string | null>(null);
 
@@ -54,7 +54,7 @@ export function AuthPage({
     setInfoMessage(null);
   }
 
-  async function handleOAuthSignIn(provider: 'google' | 'apple') {
+  async function handleOAuthSignIn(provider: 'google') {
     setErrorMessage(null);
     setInfoMessage(null);
     setBusyProvider(provider);
@@ -298,7 +298,6 @@ export function AuthPage({
             <>
               <SocialAuthButtons
                 onGoogleClick={() => handleOAuthSignIn('google')}
-                onAppleClick={() => handleOAuthSignIn('apple')}
                 busyProvider={busyProvider}
               />
 
@@ -441,26 +440,15 @@ export function AuthPage({
           )}
         </ElevatedGlassPanel>
 
-        {providerAvailability &&
-          (!providerAvailability.googleConfigured || !providerAvailability.appleConfigured) && (
-            <GlassPanel className="mt-4 p-4 text-xs text-slate-300 space-y-1.5">
-              <p className="font-semibold text-white">OAuth Provider Configuration Status</p>
-              {!providerAvailability.googleConfigured && (
-                <p>
-                  Google Sign-In requires <code className="font-mono text-indigo-300">GOOGLE_CLIENT_ID</code> and{' '}
-                  <code className="font-mono text-indigo-300">GOOGLE_CLIENT_SECRET</code>.
-                </p>
-              )}
-              {!providerAvailability.appleConfigured && (
-                <p>
-                  Apple Sign-In requires <code className="font-mono text-indigo-300">APPLE_CLIENT_ID</code>,{' '}
-                  <code className="font-mono text-indigo-300">APPLE_TEAM_ID</code>,{' '}
-                  <code className="font-mono text-indigo-300">APPLE_KEY_ID</code>, and{' '}
-                  <code className="font-mono text-indigo-300">APPLE_PRIVATE_KEY</code>.
-                </p>
-              )}
-            </GlassPanel>
-          )}
+        {providerAvailability && !providerAvailability.googleConfigured && (
+          <GlassPanel className="mt-4 p-4 text-xs text-slate-300 space-y-1.5">
+            <p className="font-semibold text-white">OAuth Provider Configuration Status</p>
+            <p>
+              Google Sign-In requires <code className="font-mono text-indigo-300">GOOGLE_CLIENT_ID</code> and{' '}
+              <code className="font-mono text-indigo-300">GOOGLE_CLIENT_SECRET</code>.
+            </p>
+          </GlassPanel>
+        )}
       </div>
     </div>
   );

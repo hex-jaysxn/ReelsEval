@@ -374,12 +374,11 @@ export function LandingPage({ onNavigateAuth }: LandingPageProps) {
                 <span className="text-xs font-semibold uppercase tracking-wider">Unified Authentication</span>
               </div>
               <h3 className="font-display text-xl font-bold text-white">
-                Sign in with Google, Apple, or Email
+                Sign in with Google or Email
               </h3>
               <p className="text-sm text-slate-300 leading-relaxed">
-                ReeView verifies OpenID Connect sessions server-side, supports Apple Private Relay
-                addresses, safely links verified emails across providers, and keeps all API secrets on
-                the server.
+                ReeView verifies Google OpenID Connect sessions server-side, safely links verified
+                emails across providers, and keeps all API secrets on the server.
               </p>
             </GlassPanel>
           </div>
@@ -395,7 +394,7 @@ export function LandingPage({ onNavigateAuth }: LandingPageProps) {
                 Launch your ReeView evaluation workspace
               </h2>
               <p className="text-sm text-slate-300">
-                Create an account or continue with Google or Apple to evaluate your first Reel.
+                Create an account or continue with Google to evaluate your first Reel.
               </p>
             </div>
             <div className="flex flex-wrap items-center gap-3 shrink-0">

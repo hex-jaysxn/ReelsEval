@@ -1,10 +1,9 @@
-export type AuthProviderId = 'password' | 'google' | 'apple';
+export type AuthProviderId = 'password' | 'google';
 
 export interface ConnectedProvider {
   provider: AuthProviderId;
   email: string | null;
   displayName?: string | null;
-  isPrivateRelay?: boolean;
   connectedAt: string;
 }
 
@@ -21,10 +20,8 @@ export interface AuthUser {
 
 export interface AuthProviderAvailability {
   googleConfigured: boolean;
-  appleConfigured: boolean;
   passwordResetEmailConfigured: boolean;
   callbackUrls: {
     google: string;
-    apple: string;
   };
 }

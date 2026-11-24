@@ -12,11 +12,9 @@ import {
 import type { AppDatabase, OAuthProviderName } from './db.ts';
 import {
   OAuthConfigError,
-  buildAppleAuthUrl,
   buildGoogleAuthUrl,
   getAppBaseUrl,
   getAuthProviderAvailability,
-  handleAppleCallback,
   handleGoogleCallback,
   isPasswordResetEmailConfigured,
   renderOAuthPopupHtml,
@@ -195,7 +193,7 @@ export function createAuthRouter(db: AppDatabase): express.Router {
     if (existing) {
       const message = existing.password_hash
         ? 'An account with this email already exists. Please sign in instead.'
-        : 'An account with this email already exists via social sign-in. Sign in with Google or Apple, then set a password in Account Settings.';
+        : 'An account with this email already exists via Google sign-in. Sign in with Google, then set a password in Account Settings.';
       res.status(409).json({ error: { code: 'EMAIL_EXISTS', message } });
       return;
     }
@@ -235,7 +233,8 @@ export function createAuthRouter(db: AppDatabase): express.Router {
     if (!userRow.password_hash) {
       const providers = db
         .listOAuthIdentitiesForUser(userRow.id)
-        .map((id) => (id.provider === 'google' ? 'Google' : 'Apple'))
+        .filter((id) => id.provider === 'google')
+        .map(() => 'Google')
         .join(' or ');
       res.status(401).json({
         error: {
@@ -478,113 +477,6 @@ export function createAuthRouter(db: AppDatabase): express.Router {
     }
   });
 
-  router.get('/apple/url', (req, res) => {
-    const mode = req.query.mode === 'link' ? 'link' : 'login';
-    const sessionUser = getAuthenticatedUserFromRequest(req, db);
-    if (mode === 'link' && !sessionUser) {
-      res.status(401).json({
-        error: { code: 'UNAUTHORIZED', message: 'Sign in before connecting Apple.' },
-      });
-      return;
-    }
-
-    try {
-      const url = buildAppleAuthUrl({
-        req,
-        db,
-        mode,
-        sessionUserId: sessionUser?.id ?? null,
-      });
-      res.json({ url });
-    } catch (err) {
-      if (err instanceof OAuthConfigError) {
-        res.status(err.statusCode).json({ error: { code: err.code, message: err.message } });
-        return;
-      }
-      res.status(500).json({
-        error: { code: 'OAUTH_ERROR', message: 'Could not start Sign in with Apple.' },
-      });
-    }
-  });
-
-  const appleCallbackHandler = async (req: express.Request, res: express.Response) => {
-    const body = (req.body && typeof req.body === 'object' ? req.body : {}) as Record<
-      string,
-      unknown
-    >;
-    const code =
-      typeof body.code === 'string'
-        ? body.code
-        : typeof req.query.code === 'string'
-          ? req.query.code
-          : '';
-    const state =
-      typeof body.state === 'string'
-        ? body.state
-        : typeof req.query.state === 'string'
-          ? req.query.state
-          : '';
-    const userJson = typeof body.user === 'string' ? body.user : undefined;
-    const oauthError =
-      typeof body.error === 'string'
-        ? body.error
-        : typeof req.query.error === 'string'
-          ? req.query.error
-          : '';
-
-    if (oauthError || !code || !state) {
-      res.status(400).send(
-        renderOAuthPopupHtml({
-          success: false,
-          provider: 'apple',
-          mode: 'login',
-          errorMessage: oauthError
-            ? `Apple sign-in was cancelled or denied (${oauthError}).`
-            : 'Missing authorization code from Apple.',
-        })
-      );
-      return;
-    }
-
-    try {
-      const result = await handleAppleCallback({ code, state, userJson, db });
-      let handoffCode: string | undefined;
-      if (result.mode === 'login') {
-        const token = db.createSession(result.userId);
-        setSessionCookie(req, res, token);
-        handoffCode = db.createOAuthHandoff(result.userId);
-      }
-      res.send(
-        renderOAuthPopupHtml({
-          success: true,
-          provider: 'apple',
-          mode: result.mode,
-          handoffCode,
-        })
-      );
-    } catch (err) {
-      const message =
-        err instanceof OAuthConfigError
-          ? err.message
-          : 'Apple authentication could not be completed.';
-      res.status(400).send(
-        renderOAuthPopupHtml({
-          success: false,
-          provider: 'apple',
-          mode: 'login',
-          errorMessage: message,
-        })
-      );
-    }
-  };
-
-  router.post(
-    ['/apple/callback', '/apple/callback/'],
-    express.urlencoded({ extended: false }),
-    appleCallbackHandler
-  );
-  router.get(['/apple/callback', '/apple/callback/'], appleCallbackHandler);
-
   router.post('/oauth/complete', verifySameOriginMutation, (req, res) => {
     const handoffCode =
       typeof req.body?.handoffCode === 'string' ? req.body.handoffCode.trim() : '';
@@ -614,7 +506,7 @@ export function createAuthRouter(db: AppDatabase): express.Router {
     }
 
     const provider = req.params.provider as OAuthProviderName;
-    if (provider !== 'google' && provider !== 'apple') {
+    if (provider !== 'google') {
       res.status(400).json({
         error: { code: 'INVALID_PROVIDER', message: 'Unsupported authentication provider.' },
       });
@@ -623,7 +515,7 @@ export function createAuthRouter(db: AppDatabase): express.Router {
 
     const connectedOAuthProviders = authUser.connectedProviders
       .map((p) => p.provider)
-      .filter((p): p is OAuthProviderName => p === 'google' || p === 'apple');
+      .filter((p): p is OAuthProviderName => p === 'google');
 
     const check = canDisconnectProvider({
       hasPassword: authUser.hasPassword,

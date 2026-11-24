@@ -4,7 +4,6 @@ import {
   canDisconnectProvider,
   decideOAuthResolution,
   hashPassword,
-  isApplePrivateRelayEmail,
   verifyPassword,
 } from './authLogic.ts';
 import { AppDatabase } from './db.ts';
@@ -15,11 +14,6 @@ test('scrypt hashPassword and verifyPassword verify valid and reject invalid pas
   assert.equal(await verifyPassword('StrongPass123!', hash), true);
   assert.equal(await verifyPassword('WrongPass123!', hash), false);
   assert.equal(await verifyPassword('StrongPass123!', null), false);
-});
-
-test('isApplePrivateRelayEmail identifies Apple Private Relay addresses', () => {
-  assert.equal(isApplePrivateRelayEmail('xyz123@privaterelay.appleid.com'), true);
-  assert.equal(isApplePrivateRelayEmail('user@gmail.com'), false);
 });
 
 test('decideOAuthResolution safely links verified emails and prevents duplicates or hijack', () => {
@@ -109,17 +103,9 @@ test('canDisconnectProvider prevents locking out user with no remaining auth met
     }).allowed,
     true
   );
-  assert.equal(
-    canDisconnectProvider({
-      hasPassword: false,
-      connectedOAuthProviders: ['google', 'apple'],
-      providerToRemove: 'apple',
-    }).allowed,
-    true
-  );
 });
 
-test('AppDatabase supports unified email/password, Google, Apple Private Relay, sessions, and resets', async () => {
+test('AppDatabase supports unified email/password, Google, sessions, and resets', async () => {
   const db = new AppDatabase(':memory:');
   const pwHash = await hashPassword('InitialPass123!');
   const user = db.createUser({
@@ -134,26 +120,16 @@ test('AppDatabase supports unified email/password, Google, Apple Private Relay, 
     provider: 'google',
     providerUserId: 'google-sub-1',
     providerEmail: 'creator@example.com',
-    isPrivateRelay: false,
     displayName: 'Creator One',
     avatarUrl: 'https://example.com/avatar.png',
   });
 
-  db.upsertOAuthIdentity({
-    userId: user.id,
-    provider: 'apple',
-    providerUserId: 'apple-sub-1',
-    providerEmail: 'abc999@privaterelay.appleid.com',
-    isPrivateRelay: true,
-    displayName: 'Creator One',
-  });
-
   const profile = db.getAuthUserProfile(user.id)!;
   assert.equal(profile.hasPassword, true);
-  assert.equal(profile.connectedProviders.length, 3);
-  assert.equal(
-    profile.connectedProviders.find((p) => p.provider === 'apple')?.isPrivateRelay,
-    true
+  assert.equal(profile.connectedProviders.length, 2);
+  assert.deepEqual(
+    profile.connectedProviders.map((p) => p.provider),
+    ['password', 'google']
   );
 
   // Session lifecycle

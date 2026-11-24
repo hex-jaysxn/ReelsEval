@@ -1,11 +1,11 @@
 import { useEffect, useState } from 'react';
 import { AlertCircle, Menu, PlusCircle, RefreshCw } from 'lucide-react';
 import type {
-  ApiErrorPayload,
   EvaluationContext,
   ReelEvaluation,
   ReelVideoMetadata,
 } from './types/evaluation.ts';
+import { parseEvaluationApiResponse } from './utils/evaluationLogic.ts';
 import {
   deleteEvaluationFromHistory,
   clearEvaluationHistory,
@@ -121,26 +121,27 @@ export default function App() {
       const response = await fetch('/api/evaluate', {
         method: 'POST',
         body: formData,
+        credentials: 'same-origin',
+        headers: {
+          Accept: 'application/json',
+        },
       });
 
-      const data = (await response.json().catch(() => null)) as
-        | { evaluation?: ReelEvaluation }
-        | ApiErrorPayload
-        | null;
+      const rawBody = await response.text();
+      const parsed = parseEvaluationApiResponse({
+        ok: response.ok,
+        status: response.status,
+        contentType: response.headers.get('content-type'),
+        redirected: response.redirected,
+        rawBody,
+      });
 
-      if (!response.ok || !data || !('evaluation' in data) || !data.evaluation) {
-        const errPayload =
-          data && 'error' in data && data.error
-            ? data.error
-            : {
-                code: 'ANALYSIS_FAILED',
-                message: `Server returned status ${response.status} while evaluating video.`,
-              };
-        setApiError(errPayload);
+      if (parsed.ok === false) {
+        setApiError(parsed.error);
         return;
       }
 
-      const evaluation = data.evaluation;
+      const evaluation = parsed.evaluation;
       setActiveEvaluation(evaluation);
       const updatedHistory = saveEvaluationToHistory(evaluation);
       setHistory(updatedHistory);
@@ -258,7 +259,9 @@ export default function App() {
                             ? 'Gemini API Key Configuration Required'
                             : apiError.code === 'UNSUPPORTED_VIDEO'
                               ? 'Unsupported Video Format or Codec'
-                              : 'Video Evaluation Could Not Complete'}
+                              : apiError.code === 'SESSION_OR_PROXY_HTML'
+                                ? 'Preview Session Refresh Required'
+                                : 'Video Evaluation Could Not Complete'}
                       </h2>
                       <p className="mt-1 text-sm text-red-700 leading-relaxed">
                         {apiError.message}

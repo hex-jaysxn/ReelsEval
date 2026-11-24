@@ -82,6 +82,11 @@ async function startServer() {
   const app = express();
   app.use(express.json({ limit: '1mb' }));
 
+  app.use('/api', (_req, res, next) => {
+    res.setHeader('Cache-Control', 'no-store');
+    next();
+  });
+
   app.get('/api/health', (_req, res) => {
     res.json({
       status: 'ok',
@@ -217,6 +222,37 @@ async function startServer() {
       }
     });
   });
+
+  app.use('/api', (_req, res) => {
+    const payload: ApiErrorPayload = {
+      error: {
+        code: 'ANALYSIS_FAILED',
+        message: 'API route not found.',
+      },
+    };
+    res.status(404).json(payload);
+  });
+
+  app.use(
+    '/api',
+    (
+      err: unknown,
+      _req: express.Request,
+      res: express.Response,
+      _next: express.NextFunction
+    ) => {
+      const payload: ApiErrorPayload = {
+        error: {
+          code: 'ANALYSIS_FAILED',
+          message:
+            err instanceof Error
+              ? err.message
+              : 'Unexpected server error while handling evaluation request.',
+        },
+      };
+      res.status(500).json(payload);
+    }
+  );
 
   if (process.env.NODE_ENV !== 'production') {
     const vite = await createViteServer({

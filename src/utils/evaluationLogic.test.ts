@@ -10,6 +10,7 @@ import {
   computeVariableAverage,
   getScoreTier,
   getVariableEffectiveness,
+  parseEvaluationApiResponse,
   resolveVideoMimeType,
   validateVideoMetadata,
 } from './evaluationLogic.ts';
@@ -237,4 +238,44 @@ test('buildReportMarkdown outputs 4x3 rubric matrix and 16.33 / 20 example clean
   assert.match(md, /Informational Content \| 4 \| 4 \| 4 \| 4\.00 \| Effective/);
   assert.match(md, /Entertainment Content \| 5 \| 4 \| 4 \| 4\.33 \| Very Effective/);
   assert.match(md, /not proof of causal effects on actual consumer behavior/);
+});
+
+test('parseEvaluationApiResponse diagnoses status 200 HTML/empty/malformed and valid JSON responses', () => {
+  const htmlRes = parseEvaluationApiResponse({
+    ok: true,
+    status: 200,
+    contentType: 'text/html; charset=utf-8',
+    redirected: true,
+    rawBody: '<!doctype html><html><body>Auth</body></html>',
+  });
+  assert.equal(htmlRes.ok, false);
+  if (htmlRes.ok === false) {
+    assert.equal(htmlRes.error.code, 'SESSION_OR_PROXY_HTML');
+  }
+
+  const emptyRes = parseEvaluationApiResponse({
+    ok: true,
+    status: 200,
+    contentType: 'application/json',
+    redirected: false,
+    rawBody: '',
+  });
+  assert.equal(emptyRes.ok, false);
+  if (emptyRes.ok === false) {
+    assert.match(emptyRes.error.message, /empty response \(HTTP 200\)/);
+  }
+
+  const apiErrRes = parseEvaluationApiResponse({
+    ok: false,
+    status: 401,
+    contentType: 'application/json',
+    redirected: false,
+    rawBody: JSON.stringify({
+      error: { code: 'INVALID_API_KEY', message: 'Invalid key' },
+    }),
+  });
+  assert.equal(apiErrRes.ok, false);
+  if (apiErrRes.ok === false) {
+    assert.equal(apiErrRes.error.code, 'INVALID_API_KEY');
+  }
 });

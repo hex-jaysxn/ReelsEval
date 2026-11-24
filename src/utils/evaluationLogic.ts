@@ -1,4 +1,5 @@
 import type {
+  ApiErrorPayload,
   BrandEngagementDimensionSummary,
   EffectivenessLevel,
   ReelEvaluation,
@@ -434,3 +435,78 @@ export function buildReportMarkdown(evaluation: ReelEvaluation): string {
 
   return lines.join('\n');
 }
+
+export type ParsedEvaluationResponse =
+  | { ok: true; evaluation: ReelEvaluation }
+  | {
+      ok: false;
+      error: {
+        code: string;
+        message: string;
+        retryAfterSeconds?: number;
+      };
+    };
+
+export function parseEvaluationApiResponse(params: {
+  ok: boolean;
+  status: number;
+  contentType?: string | null;
+  redirected?: boolean;
+  rawBody: string;
+}): ParsedEvaluationResponse {
+  const { ok, status, contentType, redirected, rawBody } = params;
+  const trimmed = (rawBody || '').trim();
+  const normalizedType = (contentType || '').toLowerCase();
+  const looksLikeHtml =
+    normalizedType.includes('text/html') ||
+    trimmed.startsWith('<!doctype') ||
+    trimmed.startsWith('<!DOCTYPE') ||
+    trimmed.startsWith('<html');
+
+  let parsed: { evaluation?: ReelEvaluation } | ApiErrorPayload | null = null;
+  if (trimmed && !looksLikeHtml) {
+    try {
+      parsed = JSON.parse(trimmed) as { evaluation?: ReelEvaluation } | ApiErrorPayload;
+    } catch {
+      parsed = null;
+    }
+  }
+
+  if (ok && parsed && 'evaluation' in parsed && parsed.evaluation) {
+    return { ok: true, evaluation: parsed.evaluation };
+  }
+
+  if (parsed && 'error' in parsed && parsed.error) {
+    return { ok: false, error: parsed.error };
+  }
+
+  if (looksLikeHtml || (redirected && !parsed)) {
+    return {
+      ok: false,
+      error: {
+        code: 'SESSION_OR_PROXY_HTML',
+        message:
+          'The evaluation endpoint returned an HTML page instead of a JSON response (usually caused by an expired preview session after updating Secrets or an auth/proxy redirect). Please refresh the page and try analyzing again.',
+      },
+    };
+  }
+
+  if (!trimmed) {
+    return {
+      ok: false,
+      error: {
+        code: 'ANALYSIS_FAILED',
+        message: `The evaluation server returned an empty response (HTTP ${status}). Please retry the analysis.`,
+      },
+    };
+  }
+
+  return {
+    ok: false,
+    error: {
+      code: 'ANALYSIS_FAILED',
+      message: `Unexpected response format from evaluation server (HTTP ${status}). Please refresh the page and retry.`,
+    },
+  };
+}
+

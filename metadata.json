@@ -1,6 +1,6 @@
 {
-  "name": "ReelsEvaluator",
-  "description": "AI-powered short-form Reels marketing video evaluation platform delivering 20-point scoring, brand engagement analysis, audience response predictions, and research recommendations using Google Gemini Free Tier.",
+  "name": "ReeView",
+  "description": "ReeView is an AI-powered short-form Reels marketing evaluation platform delivering 8.00–20.00 rubric scoring, brand engagement analytics, audience response predictions, and actionable strategy insights using Google Gemini Free Tier.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

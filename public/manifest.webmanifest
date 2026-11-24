@@ -1,0 +1,16 @@
+{
+  "name": "ReeView",
+  "short_name": "ReeView",
+  "description": "AI-powered Reels marketing content effectiveness and brand engagement intelligence platform.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#070B14",
+  "theme_color": "#070B14",
+  "icons": [
+    {
+      "src": "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%230B1120'/%3E%3Cpath d='M24 20.5L45 32L24 43.5V20.5Z' fill='%236366F1'/%3E%3C/svg%3E",
+      "sizes": "64x64",
+      "type": "image/svg+xml"
+    }
+  ]
+}

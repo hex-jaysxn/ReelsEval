@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react';
-import { AlertCircle, Film, Play, Sparkles, Trash2, UploadCloud } from 'lucide-react';
+import { Film, Play, Sparkles, Trash2, UploadCloud } from 'lucide-react';
 import type {
   CampaignObjective,
   EvaluationContext,
@@ -11,6 +11,7 @@ import {
   formatDuration,
   validateVideoMetadata,
 } from '../utils/evaluationLogic.ts';
+import { ActionButton, AlertBanner, GlassPanel } from './ui/GlassPrimitives.tsx';
 
 interface UploadStageProps {
   selectedFile: File | null;
@@ -94,9 +95,10 @@ export function UploadStage({
   }
 
   return (
-    <section
-      aria-label="Video Upload and Configuration"
-      className="bg-white border border-slate-200 rounded-xl p-6 lg:p-8"
+    <GlassPanel
+      as="section"
+      ariaLabel="Video Upload and Configuration"
+      className="p-6 lg:p-8 rv-animate-in"
     >
       <div className="flex flex-col lg:flex-row gap-8 items-stretch">
         {/* Left: Drag & Drop or Video Preview */}
@@ -112,19 +114,19 @@ export function UploadStage({
                 setIsDragging(false);
               }}
               onDrop={handleDrop}
-              className={`flex-1 min-h-[340px] flex flex-col items-center justify-center text-center rounded-xl border-2 border-dashed p-6 transition-colors ${
+              className={`flex-1 min-h-[340px] flex flex-col items-center justify-center text-center rounded-2xl border-2 border-dashed p-6 transition-colors ${
                 isDragging
-                  ? 'border-indigo-600 bg-indigo-50/50'
-                  : 'border-slate-300 bg-slate-50/60 hover:border-slate-400'
+                  ? 'border-indigo-400 bg-indigo-500/15'
+                  : 'border-slate-700/80 bg-slate-950/60 hover:border-slate-500'
               }`}
             >
-              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-white border border-slate-200 text-indigo-600 mb-4">
+              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-slate-900 border border-white/15 text-indigo-300 mb-4">
                 <UploadCloud className="h-6 w-6" aria-hidden="true" />
               </div>
-              <h2 className="font-display text-base font-semibold text-slate-900">
+              <h2 className="font-display text-base font-semibold text-white">
                 Upload Short-Form Reel
               </h2>
-              <p className="mt-1.5 text-sm text-slate-500 max-w-xs leading-relaxed">
+              <p className="mt-1.5 text-sm text-slate-300 max-w-xs leading-relaxed">
                 Drag and drop an MP4, WebM, or MOV video here, or browse from your device.
               </p>
               <p className="mt-2 text-xs text-slate-400">
@@ -143,18 +145,19 @@ export function UploadStage({
                 }}
               />
 
-              <button
+              <ActionButton
                 type="button"
+                variant="primary"
                 onClick={() => fileInputRef.current?.click()}
-                className="mt-5 inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-indigo-600 text-white text-sm font-medium hover:bg-indigo-700 transition-colors whitespace-nowrap shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-600 focus-visible:ring-offset-2"
+                className="mt-5"
               >
                 <Film className="h-4 w-4" aria-hidden="true" />
                 <span>Select Video File</span>
-              </button>
+              </ActionButton>
             </div>
           ) : (
             <div className="flex flex-col h-full">
-              <div className="relative rounded-xl overflow-hidden bg-slate-950 border border-slate-200 aspect-[9/14] max-h-[420px] flex items-center justify-center">
+              <div className="relative rounded-2xl overflow-hidden bg-slate-950 border border-white/15 aspect-[9/14] max-h-[420px] flex items-center justify-center">
                 <video
                   src={previewUrl}
                   controls
@@ -172,9 +175,9 @@ export function UploadStage({
                 />
               </div>
 
-              <div className="mt-3 flex items-center justify-between gap-3 text-xs text-slate-500">
+              <div className="mt-3 flex items-center justify-between gap-3 text-xs text-slate-400">
                 <div className="min-w-0">
-                  <p className="font-medium text-slate-800 truncate">
+                  <p className="font-medium text-white truncate">
                     {videoMetadata?.fileName}
                   </p>
                   <p className="mt-0.5 tabular-nums">
@@ -190,16 +193,17 @@ export function UploadStage({
                   </p>
                 </div>
 
-                <button
+                <ActionButton
                   type="button"
+                  variant="secondary"
+                  size="sm"
                   onClick={onClearFile}
                   disabled={isAnalyzing}
                   aria-label="Remove selected video"
-                  className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg border border-slate-200 text-xs font-medium text-slate-600 hover:bg-slate-50 hover:text-slate-900 disabled:opacity-50 whitespace-nowrap shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-600"
                 >
                   <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
                   <span>Change</span>
-                </button>
+                </ActionButton>
               </div>
             </div>
           )}
@@ -208,22 +212,18 @@ export function UploadStage({
         {/* Right: Evaluation Parameters & Launch CTA */}
         <div className="flex-1 flex flex-col justify-between">
           <div>
-            <div className="border-b border-slate-200 pb-4">
-              <h1 className="font-display text-2xl font-bold tracking-tight text-slate-900 text-balance">
-                Evaluate Reels Marketing & Brand Engagement
+            <div className="border-b border-white/10 pb-4">
+              <h1 className="font-display text-2xl font-bold tracking-tight text-white text-balance">
+                Evaluate Reels Marketing &amp; Brand Engagement
               </h1>
-              <p className="mt-1.5 text-sm text-slate-600 leading-relaxed max-w-2xl">
+              <p className="mt-1.5 text-sm text-slate-300 leading-relaxed max-w-2xl">
                 Upload a short-form marketing video for real multimodal analysis using Google Gemini Free Tier. Each of the four Reels Marketing Content variables is scored across Interaction, Participation, and Sharing (2–5 rating scale; 8.00–20.00 overall score).
               </p>
             </div>
 
             {validationError && (
-              <div
-                role="alert"
-                className="mt-5 flex items-start gap-3 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800"
-              >
-                <AlertCircle className="h-4 w-4 text-red-600 shrink-0 mt-0.5" aria-hidden="true" />
-                <span>{validationError}</span>
+              <div className="mt-5">
+                <AlertBanner tone="error" message={validationError} />
               </div>
             )}
 
@@ -231,7 +231,7 @@ export function UploadStage({
               <div>
                 <label
                   htmlFor="target-persona-select"
-                  className="block text-sm font-medium text-slate-700 mb-1.5"
+                  className="block text-sm font-medium text-slate-200 mb-1.5"
                 >
                   Primary Target Audience
                 </label>
@@ -245,7 +245,7 @@ export function UploadStage({
                       targetPersona: e.target.value as TargetUserPersona,
                     })
                   }
-                  className="w-full rounded-lg border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-slate-900 focus:border-indigo-600 focus:outline-none focus:ring-2 focus:ring-indigo-600/20 disabled:opacity-60"
+                  className="w-full h-11 rounded-xl rv-input-solid px-3.5 text-sm disabled:opacity-60"
                 >
                   {PERSONA_OPTIONS.map((opt) => (
                     <option key={opt} value={opt}>
@@ -258,7 +258,7 @@ export function UploadStage({
               <div>
                 <label
                   htmlFor="campaign-objective-select"
-                  className="block text-sm font-medium text-slate-700 mb-1.5"
+                  className="block text-sm font-medium text-slate-200 mb-1.5"
                 >
                   Campaign Objective
                 </label>
@@ -272,7 +272,7 @@ export function UploadStage({
                       campaignObjective: e.target.value as CampaignObjective,
                     })
                   }
-                  className="w-full rounded-lg border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-slate-900 focus:border-indigo-600 focus:outline-none focus:ring-2 focus:ring-indigo-600/20 disabled:opacity-60"
+                  className="w-full h-11 rounded-xl rv-input-solid px-3.5 text-sm disabled:opacity-60"
                 >
                   {OBJECTIVE_OPTIONS.map((opt) => (
                     <option key={opt} value={opt}>
@@ -286,7 +286,7 @@ export function UploadStage({
             <div className="mt-5">
               <label
                 htmlFor="brand-context-input"
-                className="block text-sm font-medium text-slate-700 mb-1.5"
+                className="block text-sm font-medium text-slate-200 mb-1.5"
               >
                 Product or Brand Context <span className="font-normal text-slate-400">(Optional)</span>
               </label>
@@ -303,36 +303,36 @@ export function UploadStage({
                   })
                 }
                 placeholder="e.g., Eco-friendly skincare launch targeting Gen Z commuters"
-                className="w-full rounded-lg border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 focus:border-indigo-600 focus:outline-none focus:ring-2 focus:ring-indigo-600/20 disabled:opacity-60"
+                className="w-full h-11 rounded-xl rv-input-solid px-3.5 text-sm disabled:opacity-60"
               />
             </div>
 
             {/* Rubric preview strip */}
-            <div className="mt-6 pt-5 border-t border-slate-100 grid grid-cols-2 sm:grid-cols-4 gap-4">
+            <div className="mt-6 pt-5 border-t border-white/10 grid grid-cols-2 sm:grid-cols-4 gap-4">
               <div>
-                <p className="text-xs font-medium text-slate-500">Informational</p>
-                <p className="mt-0.5 font-mono text-sm font-semibold tabular-nums text-slate-900">
+                <p className="text-xs font-medium text-slate-400">Informational</p>
+                <p className="mt-0.5 font-mono text-sm font-semibold tabular-nums text-white">
                   2.00–5.00
                 </p>
                 <p className="text-[11px] text-slate-400 tabular-nums">Mean 3.40 · r=0.372</p>
               </div>
               <div>
-                <p className="text-xs font-medium text-slate-500">Entertainment</p>
-                <p className="mt-0.5 font-mono text-sm font-semibold tabular-nums text-slate-900">
+                <p className="text-xs font-medium text-slate-400">Entertainment</p>
+                <p className="mt-0.5 font-mono text-sm font-semibold tabular-nums text-white">
                   2.00–5.00
                 </p>
                 <p className="text-[11px] text-slate-400 tabular-nums">Mean 3.19 · r=0.463</p>
               </div>
               <div>
-                <p className="text-xs font-medium text-slate-500">Trendiness</p>
-                <p className="mt-0.5 font-mono text-sm font-semibold tabular-nums text-slate-900">
+                <p className="text-xs font-medium text-slate-400">Trendiness</p>
+                <p className="mt-0.5 font-mono text-sm font-semibold tabular-nums text-white">
                   2.00–5.00
                 </p>
                 <p className="text-[11px] text-slate-400 tabular-nums">Mean 3.43 · r=0.306</p>
               </div>
               <div>
-                <p className="text-xs font-medium text-slate-500">Relatable</p>
-                <p className="mt-0.5 font-mono text-sm font-semibold tabular-nums text-slate-900">
+                <p className="text-xs font-medium text-slate-400">Relatable</p>
+                <p className="mt-0.5 font-mono text-sm font-semibold tabular-nums text-white">
                   2.00–5.00
                 </p>
                 <p className="text-[11px] text-slate-400 tabular-nums">Mean 3.31 · r=0.554</p>
@@ -340,16 +340,17 @@ export function UploadStage({
             </div>
           </div>
 
-          <div className="mt-8 pt-5 border-t border-slate-200 flex flex-wrap items-center justify-between gap-4">
-            <div className="text-xs text-slate-500">
-              <span>Each variable averaged across Interaction, Participation & Sharing (8.00–20.00 total)</span>
+          <div className="mt-8 pt-5 border-t border-white/10 flex flex-wrap items-center justify-between gap-4">
+            <div className="text-xs text-slate-400">
+              <span>Each variable averaged across Interaction, Participation &amp; Sharing (8.00–20.00 total)</span>
             </div>
 
-            <button
+            <ActionButton
               type="button"
+              variant="primary"
+              size="lg"
               onClick={onAnalyze}
               disabled={!selectedFile || isAnalyzing}
-              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg bg-indigo-600 text-white text-sm font-semibold hover:bg-indigo-700 disabled:bg-slate-200 disabled:text-slate-400 disabled:cursor-not-allowed transition-colors whitespace-nowrap shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-600 focus-visible:ring-offset-2"
             >
               {isAnalyzing ? (
                 <>
@@ -362,10 +363,10 @@ export function UploadStage({
                   <span>Analyze Reel</span>
                 </>
               )}
-            </button>
+            </ActionButton>
           </div>
         </div>
       </div>
-    </section>
+    </GlassPanel>
   );
 }

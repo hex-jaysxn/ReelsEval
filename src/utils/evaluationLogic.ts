@@ -374,7 +374,7 @@ export function buildReportMarkdown(evaluation: ReelEvaluation): string {
   ];
 
   const lines: string[] = [
-    `# ReelsEvaluator — Reels Marketing Content Effectiveness Assessment`,
+    `# ReeView — Reels Marketing Content Effectiveness Assessment`,
     ``,
     `- **Video File:** ${videoMetadata.fileName}`,
     `- **File Size:** ${formatBytes(videoMetadata.fileSizeBytes)}`,

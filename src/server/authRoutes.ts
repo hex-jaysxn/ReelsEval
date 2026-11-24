@@ -149,7 +149,7 @@ export function requireAuthMiddleware(db: AppDatabase) {
       const payload: ApiErrorPayload = {
         error: {
           code: 'INVALID_API_KEY',
-          message: 'Please sign in to access your ReelsEvaluator account.',
+          message: 'Please sign in to access your ReeView account.',
         },
       };
       res.status(401).json(payload);

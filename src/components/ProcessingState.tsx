@@ -1,12 +1,13 @@
 import { useEffect, useState } from 'react';
 import { Check, Loader2 } from 'lucide-react';
+import { ElevatedGlassPanel, ProgressBar, SkeletonCard } from './ui/GlassPrimitives.tsx';
 
 interface ProcessingStateProps {
   fileName: string;
 }
 
 const STEPS = [
-  'Uploading video stream to evaluation server',
+  'Uploading video stream to ReeView evaluation server',
   'Inspecting visual frames, audio pacing, and on-screen cues via Gemini',
   'Scoring 4×3 Content & Engagement matrix (Interaction, Participation, Sharing)',
   'Calculating 8.00–20.00 effectiveness score & development recommendations',
@@ -23,55 +24,75 @@ export function ProcessingState({ fileName }: ProcessingStateProps) {
   }, []);
 
   return (
-    <section
-      aria-live="polite"
-      aria-label="Analyzing video"
-      className="bg-white border border-slate-200 rounded-xl p-6 lg:p-8"
-    >
-      <div className="max-w-2xl">
-        <div className="flex items-center gap-3">
-          <Loader2 className="h-5 w-5 text-indigo-600 animate-spin shrink-0" aria-hidden="true" />
-          <h2 className="font-display text-lg font-semibold text-slate-900">
-            Running Multimodal Video Analysis
-          </h2>
-        </div>
-        <p className="mt-1.5 text-sm text-slate-500">
-          Evaluating <span className="font-medium text-slate-700">{fileName}</span> with Google Gemini Free Tier. Larger clips may take 15–30 seconds.
-        </p>
+    <div className="space-y-6 rv-animate-in">
+      <ElevatedGlassPanel
+        as="section"
+        ariaLabel="Analyzing video"
+        className="p-6 lg:p-8"
+      >
+        <div aria-live="polite" className="max-w-2xl space-y-5">
+          <div className="flex items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <Loader2 className="h-5 w-5 text-indigo-400 animate-spin shrink-0" aria-hidden="true" />
+              <h2 className="font-display text-lg font-semibold text-white">
+                Running Multimodal Video Analysis
+              </h2>
+            </div>
+            <span className="font-mono text-xs text-indigo-300 tabular-nums">
+              Step {activeStep + 1} / {STEPS.length}
+            </span>
+          </div>
 
-        <ol className="mt-6 space-y-3">
-          {STEPS.map((label, idx) => {
-            const done = idx < activeStep;
-            const current = idx === activeStep;
-            return (
-              <li key={label} className="flex items-center gap-3 text-sm">
-                <span
-                  className={`flex h-6 w-6 items-center justify-center rounded-full text-xs font-mono shrink-0 ${
-                    done
-                      ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                      : current
-                        ? 'bg-indigo-50 text-indigo-700 border border-indigo-200'
-                        : 'bg-slate-50 text-slate-400 border border-slate-200'
-                  }`}
-                >
-                  {done ? <Check className="h-3.5 w-3.5" aria-hidden="true" /> : idx + 1}
-                </span>
-                <span
-                  className={
-                    done
-                      ? 'text-slate-500'
-                      : current
-                        ? 'font-medium text-slate-900'
-                        : 'text-slate-400'
-                  }
-                >
-                  {label}
-                </span>
-              </li>
-            );
-          })}
-        </ol>
+          <p className="text-sm text-slate-300">
+            Evaluating <span className="font-medium text-white">{fileName}</span> with Google Gemini Free Tier. Larger clips may take 15–30 seconds.
+          </p>
+
+          <ProgressBar
+            value={activeStep + 1}
+            max={STEPS.length}
+            colorClass="bg-gradient-to-r from-indigo-500 to-sky-400"
+            label="Analysis progress"
+          />
+
+          <ol className="pt-2 space-y-3">
+            {STEPS.map((label, idx) => {
+              const done = idx < activeStep;
+              const current = idx === activeStep;
+              return (
+                <li key={label} className="flex items-center gap-3 text-sm">
+                  <span
+                    className={`flex h-6 w-6 items-center justify-center rounded-full text-xs font-mono shrink-0 ${
+                      done
+                        ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-400/40'
+                        : current
+                          ? 'bg-indigo-500/25 text-indigo-200 border border-indigo-400/45'
+                          : 'bg-slate-900 text-slate-500 border border-slate-700'
+                    }`}
+                  >
+                    {done ? <Check className="h-3.5 w-3.5" aria-hidden="true" /> : idx + 1}
+                  </span>
+                  <span
+                    className={
+                      done
+                        ? 'text-slate-400'
+                        : current
+                          ? 'font-medium text-white'
+                          : 'text-slate-500'
+                    }
+                  >
+                    {label}
+                  </span>
+                </li>
+              );
+            })}
+          </ol>
+        </div>
+      </ElevatedGlassPanel>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6" aria-hidden="true">
+        <SkeletonCard lines={4} />
+        <SkeletonCard lines={4} />
       </div>
-    </section>
+    </div>
   );
 }

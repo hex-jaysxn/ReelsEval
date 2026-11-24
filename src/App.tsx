@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { AlertCircle, Menu, PlusCircle, RefreshCw } from 'lucide-react';
+import { Menu, PlusCircle, RefreshCw } from 'lucide-react';
 import type { AuthProviderAvailability, AuthUser } from './types/auth.ts';
 import type {
   EvaluationContext,
@@ -19,6 +19,8 @@ import { HistoryView } from './components/HistoryView.tsx';
 import { MethodologyView } from './components/MethodologyView.tsx';
 import { AuthPage } from './components/AuthPage.tsx';
 import { AccountSettingsView } from './components/AccountSettingsView.tsx';
+import { LandingPage } from './components/LandingPage.tsx';
+import { ActionButton, AlertBanner, ReeViewMark } from './components/ui/GlassPrimitives.tsx';
 
 export default function App() {
   const [authUser, setAuthUser] = useState<AuthUser | null>(null);
@@ -33,8 +35,16 @@ export default function App() {
       resetToken: params.get('resetToken'),
       oauthHandoff: params.get('oauthHandoff'),
       authError: params.get('authError'),
+      autostart: params.get('autostart'),
     };
   });
+
+  const [unauthView, setUnauthView] = useState<'landing' | 'auth'>(() =>
+    initialParams.resetToken || initialParams.authError || initialParams.autostart
+      ? 'auth'
+      : 'landing'
+  );
+  const [authInitialMode, setAuthInitialMode] = useState<'login' | 'register'>('login');
 
   const [activeTab, setActiveTab] = useState<ActiveTab>('evaluator');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -183,6 +193,7 @@ export default function App() {
     setHistory([]);
     setApiError(null);
     setActiveTab('evaluator');
+    setUnauthView('landing');
   }
 
   function handleFileSelected(file: File, meta: ReelVideoMetadata, url: string) {
@@ -330,19 +341,33 @@ export default function App() {
 
   if (authLoading) {
     return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center p-6">
-        <div className="text-sm font-medium text-slate-500">Loading workspace...</div>
+      <div className="min-h-screen rv-atmosphere flex flex-col items-center justify-center p-6 gap-4">
+        <ReeViewMark size="lg" />
+        <p className="text-sm font-medium text-slate-300">Loading ReeView workspace...</p>
       </div>
     );
   }
 
   if (!authUser) {
+    if (unauthView === 'landing') {
+      return (
+        <LandingPage
+          onNavigateAuth={(mode) => {
+            setAuthInitialMode(mode);
+            setUnauthView('auth');
+          }}
+        />
+      );
+    }
+
     return (
       <AuthPage
+        initialMode={authInitialMode}
         initialResetToken={initialParams.resetToken}
         initialAuthError={initialParams.authError}
         providerAvailability={providerAvailability}
         onAuthenticated={handleAuthenticated}
+        onBackToLanding={() => setUnauthView('landing')}
       />
     );
   }
@@ -358,8 +383,10 @@ export default function App() {
           ? 'Account Settings'
           : 'Scoring Rubric';
 
+  const workflowStep = isAnalyzing ? 2 : activeEvaluation ? 3 : 1;
+
   return (
-    <div className="min-h-screen flex bg-slate-50 text-slate-900">
+    <div className="min-h-screen flex rv-atmosphere text-slate-100">
       <Sidebar
         activeTab={activeTab}
         onSelectTab={setActiveTab}
@@ -377,38 +404,57 @@ export default function App() {
       />
 
       <div className="flex-1 min-w-0 flex flex-col">
-        {/* Top Header Bar — Clean 3-zone SaaS contract */}
-        <header className="sticky top-0 z-30 h-16 bg-white border-b border-slate-200 px-4 sm:px-8 flex items-center justify-between gap-4 no-print">
+        {/* Top Header Bar */}
+        <header className="sticky top-0 z-30 h-16 rv-glass-nav border-b px-4 sm:px-8 flex items-center justify-between gap-4 no-print">
           <div className="flex items-center gap-3 min-w-0">
             <button
               type="button"
               onClick={() => setMobileMenuOpen(true)}
               aria-label="Open navigation menu"
-              className="lg:hidden flex h-10 w-10 items-center justify-center rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-slate-900 shrink-0"
+              className="lg:hidden flex h-10 w-10 items-center justify-center rounded-xl border border-slate-700/80 bg-slate-900 text-slate-200 hover:bg-slate-800 hover:text-white shrink-0 cursor-pointer"
             >
               <Menu className="h-5 w-5" aria-hidden="true" />
             </button>
 
             <div className="flex items-center gap-2 text-sm min-w-0">
-              <span className="text-slate-400 hidden sm:inline whitespace-nowrap">Workspace</span>
-              <span className="text-slate-300 hidden sm:inline" aria-hidden="true">
+              <span className="text-slate-400 hidden sm:inline whitespace-nowrap">ReeView</span>
+              <span className="text-slate-600 hidden sm:inline" aria-hidden="true">
                 /
               </span>
-              <span className="font-display font-semibold text-slate-900 truncate">
+              <span className="font-display font-semibold text-white truncate">
                 {pageTitle}
               </span>
             </div>
           </div>
 
-          <div className="flex items-center gap-3 shrink-0">
-            <button
-              type="button"
+          <div className="flex items-center gap-4 shrink-0">
+            {activeTab === 'evaluator' && (
+              <ol
+                aria-label="Evaluation workflow progress"
+                className="hidden xl:flex items-center gap-2 text-xs text-slate-400"
+              >
+                <li className={workflowStep === 1 ? 'text-white font-semibold' : ''}>
+                  01 Upload
+                </li>
+                <li aria-hidden="true" className="text-slate-600">→</li>
+                <li className={workflowStep === 2 ? 'text-indigo-300 font-semibold' : ''}>
+                  02 AI Analysis
+                </li>
+                <li aria-hidden="true" className="text-slate-600">→</li>
+                <li className={workflowStep === 3 ? 'text-emerald-300 font-semibold' : ''}>
+                  03 Report
+                </li>
+              </ol>
+            )}
+
+            <ActionButton
+              variant="primary"
+              size="sm"
               onClick={handleStartNewEvaluation}
-              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-slate-900 text-white text-xs font-medium hover:bg-slate-800 transition-colors whitespace-nowrap shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-600"
             >
               <PlusCircle className="h-3.5 w-3.5" aria-hidden="true" />
               <span>New Evaluation</span>
-            </button>
+            </ActionButton>
           </div>
         </header>
 
@@ -416,7 +462,38 @@ export default function App() {
         <main className="flex-1 p-4 sm:p-8 max-w-[1280px] w-full mx-auto space-y-6">
           {activeTab === 'evaluator' && (
             <>
-              {!activeEvaluation && (
+              {apiError && !isAnalyzing && (
+                <AlertBanner
+                  tone="error"
+                  title={
+                    apiError.code === 'RATE_LIMIT'
+                      ? 'Gemini Free Tier Rate Limit Reached'
+                      : apiError.code === 'INVALID_API_KEY'
+                        ? 'Gemini API Key Configuration Required'
+                        : apiError.code === 'UNSUPPORTED_VIDEO'
+                          ? 'Unsupported Video Format or Codec'
+                          : apiError.code === 'SESSION_OR_PROXY_HTML'
+                            ? 'Preview Session Refresh Required'
+                            : 'Video Evaluation Could Not Complete'
+                  }
+                  message={apiError.message}
+                  detail={
+                    apiError.retryAfterSeconds
+                      ? `Suggested wait before retry: ~${apiError.retryAfterSeconds} seconds.`
+                      : undefined
+                  }
+                  action={
+                    selectedFile ? (
+                      <ActionButton variant="danger" size="sm" onClick={handleAnalyzeReel}>
+                        <RefreshCw className="h-3.5 w-3.5" aria-hidden="true" />
+                        <span>Retry Analysis</span>
+                      </ActionButton>
+                    ) : undefined
+                  }
+                />
+              )}
+
+              {!activeEvaluation && !isAnalyzing && (
                 <UploadStage
                   selectedFile={selectedFile}
                   previewUrl={previewUrl}
@@ -435,49 +512,6 @@ export default function App() {
 
               {isAnalyzing && videoMetadata && (
                 <ProcessingState fileName={videoMetadata.fileName} />
-              )}
-
-              {apiError && !isAnalyzing && (
-                <div
-                  role="alert"
-                  className="bg-white border border-red-200 rounded-xl p-6 flex flex-col sm:flex-row sm:items-start justify-between gap-4"
-                >
-                  <div className="flex items-start gap-3">
-                    <AlertCircle className="h-5 w-5 text-red-600 shrink-0 mt-0.5" aria-hidden="true" />
-                    <div>
-                      <h2 className="font-display text-sm font-semibold text-red-900">
-                        {apiError.code === 'RATE_LIMIT'
-                          ? 'Gemini Free Tier Rate Limit Reached'
-                          : apiError.code === 'INVALID_API_KEY'
-                            ? 'Gemini API Key Configuration Required'
-                            : apiError.code === 'UNSUPPORTED_VIDEO'
-                              ? 'Unsupported Video Format or Codec'
-                              : apiError.code === 'SESSION_OR_PROXY_HTML'
-                                ? 'Preview Session Refresh Required'
-                                : 'Video Evaluation Could Not Complete'}
-                      </h2>
-                      <p className="mt-1 text-sm text-red-700 leading-relaxed">
-                        {apiError.message}
-                      </p>
-                      {apiError.retryAfterSeconds && (
-                        <p className="mt-1 text-xs text-red-600 tabular-nums">
-                          Suggested wait before retry: ~{apiError.retryAfterSeconds} seconds.
-                        </p>
-                      )}
-                    </div>
-                  </div>
-
-                  {selectedFile && (
-                    <button
-                      type="button"
-                      onClick={handleAnalyzeReel}
-                      className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg border border-red-200 bg-red-50 text-xs font-medium text-red-800 hover:bg-red-100 whitespace-nowrap shrink-0"
-                    >
-                      <RefreshCw className="h-3.5 w-3.5" aria-hidden="true" />
-                      <span>Retry Analysis</span>
-                    </button>
-                  )}
-                </div>
               )}
 
               {activeEvaluation && !isAnalyzing && (

@@ -233,6 +233,7 @@ test('buildReportMarkdown outputs 4x3 rubric matrix and 16.33 / 20 example clean
   };
 
   const md = buildReportMarkdown(sample);
+  assert.match(md, /^# ReeView — Reels Marketing Content Effectiveness Assessment/);
   assert.match(md, /Overall Effectiveness Score: 16\.33 \/ 20 — Effective/);
   assert.match(md, /Informational Content \| 4 \| 4 \| 4 \| 4\.00 \| Effective/);
   assert.match(md, /Entertainment Content \| 5 \| 4 \| 4 \| 4\.33 \| Very Effective/);

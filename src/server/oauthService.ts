@@ -471,8 +471,8 @@ export async function sendPasswordResetEmail(params: {
     body: JSON.stringify({
       from,
       to: [params.toEmail],
-      subject: 'Reset your ReelsEvaluator password',
-      html: `<p>Click the link below to reset your password. This link expires in 30 minutes.</p><p><a href="${params.resetUrl}">${params.resetUrl}</a></p>`,
+      subject: 'Reset your ReeView password',
+      html: `<p>Click the link below to reset your ReeView password. This link expires in 30 minutes.</p><p><a href="${params.resetUrl}">${params.resetUrl}</a></p>`,
     }),
   });
 

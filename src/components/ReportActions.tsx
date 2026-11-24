@@ -5,6 +5,7 @@ import {
   formatBytes,
   formatDuration,
 } from '../utils/evaluationLogic.ts';
+import { ActionButton, GlassPanel } from './ui/GlassPrimitives.tsx';
 
 interface ReportActionsProps {
   evaluation: ReelEvaluation;
@@ -36,63 +37,51 @@ export function ReportActions({ evaluation }: ReportActionsProps) {
   }
 
   return (
-    <div className="bg-white border border-slate-200 rounded-xl px-6 py-4 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+    <GlassPanel className="px-6 py-4 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
       <div className="min-w-0 space-y-1">
-        <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-slate-600">
-          <span className="font-semibold text-slate-900 truncate max-w-[240px]">
+        <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-slate-300">
+          <span className="font-semibold text-white truncate max-w-[260px]">
             {evaluation.videoMetadata.fileName}
           </span>
-          <span className="text-slate-300" aria-hidden="true">
+          <span className="text-slate-600" aria-hidden="true">
             ·
           </span>
           <span className="tabular-nums">{formatBytes(evaluation.videoMetadata.fileSizeBytes)}</span>
-          <span className="text-slate-300" aria-hidden="true">
+          <span className="text-slate-600" aria-hidden="true">
             ·
           </span>
           <span className="tabular-nums">{formatDuration(evaluation.videoMetadata.durationSeconds)}</span>
         </div>
 
-        <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-slate-500">
+        <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-slate-400">
           <span>{evaluation.context.targetPersona}</span>
-          <span className="text-slate-300" aria-hidden="true">
+          <span className="text-slate-600" aria-hidden="true">
             ·
           </span>
           <span>{evaluation.context.campaignObjective}</span>
-          <span className="text-slate-300" aria-hidden="true">
+          <span className="text-slate-600" aria-hidden="true">
             ·
           </span>
-          <span className="font-mono text-slate-500">{evaluation.modelUsed}</span>
+          <span className="font-mono text-indigo-300">{evaluation.modelUsed}</span>
         </div>
       </div>
 
       <div className="flex flex-wrap items-center gap-2 shrink-0 no-print">
-        <button
-          type="button"
-          onClick={handleDownloadMarkdown}
-          className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg border border-slate-200 bg-white text-xs font-medium text-slate-700 hover:bg-slate-50 hover:text-slate-900 whitespace-nowrap shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-600"
-        >
+        <ActionButton variant="secondary" size="sm" onClick={handleDownloadMarkdown}>
           <Download className="h-3.5 w-3.5" aria-hidden="true" />
           <span>Download Report (.md)</span>
-        </button>
+        </ActionButton>
 
-        <button
-          type="button"
-          onClick={handleDownloadJson}
-          className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg border border-slate-200 bg-white text-xs font-medium text-slate-700 hover:bg-slate-50 hover:text-slate-900 whitespace-nowrap shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-600"
-        >
+        <ActionButton variant="secondary" size="sm" onClick={handleDownloadJson}>
           <FileJson className="h-3.5 w-3.5" aria-hidden="true" />
           <span>Export JSON</span>
-        </button>
+        </ActionButton>
 
-        <button
-          type="button"
-          onClick={() => window.print()}
-          className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg border border-slate-200 bg-white text-xs font-medium text-slate-700 hover:bg-slate-50 hover:text-slate-900 whitespace-nowrap shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-600"
-        >
+        <ActionButton variant="secondary" size="sm" onClick={() => window.print()}>
           <Printer className="h-3.5 w-3.5" aria-hidden="true" />
           <span>Print</span>
-        </button>
+        </ActionButton>
       </div>
-    </div>
+    </GlassPanel>
   );
 }

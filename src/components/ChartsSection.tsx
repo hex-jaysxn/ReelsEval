@@ -6,14 +6,34 @@ interface ChartsSectionProps {
 }
 
 export function ChartsSection({ evaluation }: ChartsSectionProps) {
-  const { reelsMarketingScores, brandEngagementScores } = evaluation;
+  const { variables, brandEngagementSummary } = evaluation;
   const [hoveredAxis, setHoveredAxis] = useState<string | null>(null);
 
   const radarAxes = [
-    { key: 'relatedContent', label: 'Related Content', score: reelsMarketingScores.relatedContent.score },
-    { key: 'entertainmentContent', label: 'Entertainment', score: reelsMarketingScores.entertainmentContent.score },
-    { key: 'informational', label: 'Informational', score: reelsMarketingScores.informational.score },
-    { key: 'trendiness', label: 'Trendiness', score: reelsMarketingScores.trendiness.score },
+    {
+      key: 'informational',
+      label: 'Informational',
+      score: variables.informational.averageScore,
+      surveyMean: variables.informational.surveyMean,
+    },
+    {
+      key: 'entertainment',
+      label: 'Entertainment',
+      score: variables.entertainment.averageScore,
+      surveyMean: variables.entertainment.surveyMean,
+    },
+    {
+      key: 'trendiness',
+      label: 'Trendiness',
+      score: variables.trendiness.averageScore,
+      surveyMean: variables.trendiness.surveyMean,
+    },
+    {
+      key: 'relatable',
+      label: 'Relatable',
+      score: variables.relatable.averageScore,
+      surveyMean: variables.relatable.surveyMean,
+    },
   ];
 
   // Radar Geometry (4 axes: Top, Right, Bottom, Left)
@@ -37,14 +57,56 @@ export function ChartsSection({ evaluation }: ChartsSectionProps) {
     })
     .join(' ');
 
+  const benchmarkPoints = radarAxes
+    .map((axis, idx) => {
+      const pt = getPoint(axis.surveyMean, idx);
+      return `${pt.x.toFixed(1)},${pt.y.toFixed(1)}`;
+    })
+    .join(' ');
+
   const allBars = [
-    { label: 'Related Content', group: 'Reels Content', score: reelsMarketingScores.relatedContent.score, color: '#4F46E5' },
-    { label: 'Entertainment', group: 'Reels Content', score: reelsMarketingScores.entertainmentContent.score, color: '#4F46E5' },
-    { label: 'Informational', group: 'Reels Content', score: reelsMarketingScores.informational.score, color: '#4F46E5' },
-    { label: 'Trendiness', group: 'Reels Content', score: reelsMarketingScores.trendiness.score, color: '#4F46E5' },
-    { label: 'Interaction', group: 'Engagement', score: brandEngagementScores.interaction.score, color: '#0D9488' },
-    { label: 'Sharing', group: 'Engagement', score: brandEngagementScores.sharing.score, color: '#0D9488' },
-    { label: 'Participation', group: 'Engagement', score: brandEngagementScores.participation.score, color: '#0D9488' },
+    {
+      label: 'Informational Content',
+      group: 'r = 0.372',
+      score: variables.informational.averageScore,
+      color: '#4F46E5',
+    },
+    {
+      label: 'Entertainment Content',
+      group: 'r = 0.463',
+      score: variables.entertainment.averageScore,
+      color: '#4F46E5',
+    },
+    {
+      label: 'Trendiness',
+      group: 'r = 0.306',
+      score: variables.trendiness.averageScore,
+      color: '#4F46E5',
+    },
+    {
+      label: 'Relatable Content',
+      group: 'r = 0.554',
+      score: variables.relatable.averageScore,
+      color: '#4F46E5',
+    },
+    {
+      label: 'Interaction',
+      group: 'Dimension Mean',
+      score: brandEngagementSummary.interactionMean,
+      color: '#0D9488',
+    },
+    {
+      label: 'Participation',
+      group: 'Dimension Mean',
+      score: brandEngagementSummary.participationMean,
+      color: '#0D9488',
+    },
+    {
+      label: 'Sharing',
+      group: 'Dimension Mean',
+      score: brandEngagementSummary.sharingMean,
+      color: '#0D9488',
+    },
   ];
 
   return (
@@ -52,13 +114,25 @@ export function ChartsSection({ evaluation }: ChartsSectionProps) {
       aria-label="Score Visualization Charts"
       className="grid grid-cols-1 lg:grid-cols-2 gap-6"
     >
-      {/* Chart 1: 4-Variable Reels Marketing Content Radar */}
+      {/* Chart 1: 4-Variable Reels Marketing Content Radar + Study Survey Mean */}
       <div className="bg-white border border-slate-200 rounded-xl p-6">
-        <div className="flex items-baseline justify-between gap-2 mb-4">
+        <div className="flex flex-wrap items-baseline justify-between gap-2 mb-4">
           <h3 className="font-display text-base font-semibold text-slate-900">
-            Reels Marketing Profile
+            Reels Content Profile vs. Study Mean
           </h3>
-          <span className="text-xs text-slate-500">0–5 Scale per Variable</span>
+          <div className="flex items-center gap-3 text-xs text-slate-500">
+            <span className="flex items-center gap-1.5">
+              <span className="inline-block h-2.5 w-2.5 rounded-xs bg-indigo-600" aria-hidden="true" />
+              This Reel
+            </span>
+            <span className="flex items-center gap-1.5">
+              <span
+                className="inline-block h-0.5 w-3 border-t-2 border-dashed border-slate-500"
+                aria-hidden="true"
+              />
+              Study Mean
+            </span>
+          </div>
         </div>
 
         <div className="flex flex-col items-center gap-4">
@@ -66,7 +140,7 @@ export function ChartsSection({ evaluation }: ChartsSectionProps) {
             viewBox="0 0 350 256"
             className="w-full max-w-[320px] h-auto shrink-0"
             role="img"
-            aria-label="Radar chart showing Related Content, Entertainment, Informational, and Trendiness scores"
+            aria-label="Radar chart comparing Informational, Entertainment, Trendiness, and Relatable scores against study survey means"
           >
             {/* Concentric diamond rings for 1..5 */}
             {[1, 2, 3, 4, 5].map((level) => {
@@ -103,7 +177,17 @@ export function ChartsSection({ evaluation }: ChartsSectionProps) {
               );
             })}
 
-            {/* Data polygon */}
+            {/* Study Survey Mean benchmark polygon */}
+            <polygon
+              points={benchmarkPoints}
+              fill="none"
+              stroke="#64748B"
+              strokeWidth="1.5"
+              strokeDasharray="4 3"
+              strokeLinejoin="round"
+            />
+
+            {/* Evaluated Reel polygon */}
             <polygon
               points={polygonPoints}
               fill="rgba(79, 70, 229, 0.16)"
@@ -134,16 +218,16 @@ export function ChartsSection({ evaluation }: ChartsSectionProps) {
 
             {/* Axis Labels */}
             <text x={cx} y={36} textAnchor="middle" className="fill-slate-700 text-[11px] font-medium">
-              Related ({radarAxes[0].score.toFixed(1)})
+              Informational ({radarAxes[0].score.toFixed(2)})
             </text>
             <text x={cx + maxR + 10} y={cy + 4} textAnchor="start" className="fill-slate-700 text-[11px] font-medium">
-              Entertain ({radarAxes[1].score.toFixed(1)})
+              Entertain ({radarAxes[1].score.toFixed(2)})
             </text>
             <text x={cx} y={cy + maxR + 24} textAnchor="middle" className="fill-slate-700 text-[11px] font-medium">
-              Informational ({radarAxes[2].score.toFixed(1)})
+              Trendiness ({radarAxes[2].score.toFixed(2)})
             </text>
             <text x={cx - maxR - 10} y={cy + 4} textAnchor="end" className="fill-slate-700 text-[11px] font-medium">
-              Trendiness ({radarAxes[3].score.toFixed(1)})
+              Relatable ({radarAxes[3].score.toFixed(2)})
             </text>
           </svg>
 
@@ -157,9 +241,12 @@ export function ChartsSection({ evaluation }: ChartsSectionProps) {
                   hoveredAxis === axis.key ? 'bg-indigo-50/70' : ''
                 }`}
               >
-                <span className="text-xs font-medium text-slate-700 truncate">{axis.label}</span>
+                <span className="text-xs font-medium text-slate-700 truncate">
+                  {axis.label}
+                  <span className="text-slate-400 font-normal"> · Mean {axis.surveyMean.toFixed(2)}</span>
+                </span>
                 <span className="font-mono text-xs font-semibold tabular-nums text-slate-900 whitespace-nowrap shrink-0">
-                  {axis.score.toFixed(1)} / 5.0
+                  {axis.score.toFixed(2)}
                 </span>
               </div>
             ))}
@@ -167,20 +254,20 @@ export function ChartsSection({ evaluation }: ChartsSectionProps) {
         </div>
       </div>
 
-      {/* Chart 2: Content vs Brand Engagement Comparison Bar Chart */}
+      {/* Chart 2: Content Variables vs Brand Engagement Dimension Means */}
       <div className="bg-white border border-slate-200 rounded-xl p-6">
         <div className="flex flex-wrap items-baseline justify-between gap-2 mb-4">
           <h3 className="font-display text-base font-semibold text-slate-900">
-            Marketing vs. Brand Engagement Drivers
+            Variable Averages & Engagement Means
           </h3>
           <div className="flex items-center gap-4 text-xs text-slate-500">
             <span className="flex items-center gap-1.5">
               <span className="inline-block h-2.5 w-2.5 rounded-xs bg-indigo-600" aria-hidden="true" />
-              Reels Content
+              Content Variables
             </span>
             <span className="flex items-center gap-1.5">
               <span className="inline-block h-2.5 w-2.5 rounded-xs bg-teal-600" aria-hidden="true" />
-              Brand Engagement
+              Engagement Means
             </span>
           </div>
         </div>
@@ -190,13 +277,13 @@ export function ChartsSection({ evaluation }: ChartsSectionProps) {
             const widthPct = `${Math.max(0, Math.min(100, (bar.score / 5) * 100))}%`;
             return (
               <div key={bar.label} className="space-y-1">
-                <div className="flex items-center justify-between text-xs">
-                  <span className="font-medium text-slate-700">
+                <div className="flex items-center justify-between text-xs gap-2">
+                  <span className="font-medium text-slate-700 truncate">
                     {bar.label}
                     <span className="text-slate-400 font-normal"> · {bar.group}</span>
                   </span>
-                  <span className="font-mono font-semibold tabular-nums text-slate-900">
-                    {bar.score.toFixed(1)} / 5
+                  <span className="font-mono font-semibold tabular-nums text-slate-900 whitespace-nowrap shrink-0">
+                    {bar.score.toFixed(2)} / 5.00
                   </span>
                 </div>
                 <div className="h-2.5 w-full rounded-full bg-slate-100 overflow-hidden">

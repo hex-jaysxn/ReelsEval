@@ -1,6 +1,6 @@
 import type { ReelEvaluation } from '../types/evaluation.ts';
 
-const HISTORY_STORAGE_KEY = 'reelsevaluator_history_v1';
+const HISTORY_STORAGE_KEY = 'reelsevaluator_history_v2';
 const MAX_HISTORY_ITEMS = 30;
 
 export function loadEvaluationHistory(): ReelEvaluation[] {
@@ -12,7 +12,13 @@ export function loadEvaluationHistory(): ReelEvaluation[] {
     if (!Array.isArray(parsed)) return [];
     return parsed.filter(
       (item): item is ReelEvaluation =>
-        Boolean(item && typeof item.id === 'string' && typeof item.overallScore === 'number')
+        Boolean(
+          item &&
+            item.schemaVersion === 2 &&
+            typeof item.id === 'string' &&
+            typeof item.overallScore === 'number' &&
+            item.variables
+        )
     );
   } catch {
     return [];
@@ -26,7 +32,7 @@ export function saveEvaluationToHistory(evaluation: ReelEvaluation): ReelEvaluat
     try {
       window.localStorage.setItem(HISTORY_STORAGE_KEY, JSON.stringify(next));
     } catch {
-      // Ignore storage quota errors cleanly
+      // Ignore storage quota errors
     }
   }
   return next;

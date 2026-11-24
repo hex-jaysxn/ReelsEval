@@ -125,7 +125,7 @@ export function Sidebar({
                         {item.videoMetadata.fileName}
                       </span>
                       <span className="font-mono text-xs font-semibold tabular-nums text-indigo-600 shrink-0">
-                        {item.overallScore}/20
+                        {item.overallScore.toFixed(2)}/20
                       </span>
                     </div>
                     <div className="mt-0.5 flex items-center gap-1.5 text-[11px] text-slate-400 truncate">
@@ -146,7 +146,7 @@ export function Sidebar({
       <div className="p-4 border-t border-slate-200 bg-slate-50/70">
         <p className="text-xs font-medium text-slate-700">Gemini Free Tier Mode</p>
         <p className="mt-1 text-xs text-slate-500 leading-relaxed">
-          Optimized multimodal analysis up to 45 MB per clip using structured 20-point scoring.
+          Optimized multimodal evaluation up to 45 MB per clip using the 4×3 rubric matrix (8.00–20.00).
         </p>
       </div>
     </div>

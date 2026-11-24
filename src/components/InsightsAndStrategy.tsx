@@ -1,4 +1,12 @@
-import { AlertTriangle, ArrowUpRight, CheckCircle2, Compass, Lightbulb, Users } from 'lucide-react';
+import {
+  AlertTriangle,
+  ArrowUpRight,
+  CheckCircle2,
+  Compass,
+  Info,
+  Lightbulb,
+  Users,
+} from 'lucide-react';
 import type { AudienceSegmentPrediction, ReelEvaluation } from '../types/evaluation.ts';
 
 interface InsightsAndStrategyProps {
@@ -32,8 +40,8 @@ function getPriorityStyle(priority: 'High' | 'Medium' | 'Low'): string {
 export function InsightsAndStrategy({ evaluation }: InsightsAndStrategyProps) {
   const {
     strengths,
-    weaknesses,
-    improvementRecommendations,
+    areasForImprovement,
+    developmentRecommendations,
     predictedAudienceResponse,
     marketingStrategyRecommendations,
     researchRecommendations,
@@ -41,9 +49,9 @@ export function InsightsAndStrategy({ evaluation }: InsightsAndStrategyProps) {
 
   return (
     <div className="space-y-8">
-      {/* Strengths & Weaknesses */}
+      {/* Strengths & Areas for Improvement */}
       <section
-        aria-label="Strengths and Weaknesses"
+        aria-label="Strengths and Areas for Improvement"
         className="grid grid-cols-1 lg:grid-cols-2 gap-6"
       >
         <div className="bg-white border border-slate-200 rounded-xl p-6">
@@ -66,10 +74,12 @@ export function InsightsAndStrategy({ evaluation }: InsightsAndStrategyProps) {
         <div className="bg-white border border-slate-200 rounded-xl p-6">
           <div className="flex items-center gap-2 mb-4">
             <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0" aria-hidden="true" />
-            <h3 className="font-display text-base font-semibold text-slate-900">Weaknesses</h3>
+            <h3 className="font-display text-base font-semibold text-slate-900">
+              Areas for Improvement
+            </h3>
           </div>
           <ul className="space-y-3">
-            {weaknesses.map((item, idx) => (
+            {areasForImprovement.map((item, idx) => (
               <li
                 key={idx}
                 className="text-sm text-slate-700 leading-relaxed pb-3 border-b border-slate-100 last:border-b-0 last:pb-0"
@@ -81,20 +91,20 @@ export function InsightsAndStrategy({ evaluation }: InsightsAndStrategyProps) {
         </div>
       </section>
 
-      {/* Specific Improvement Recommendations */}
+      {/* Development Recommendations */}
       <section
-        aria-label="Specific Improvement Recommendations"
+        aria-label="Development Recommendations"
         className="bg-white border border-slate-200 rounded-xl p-6"
       >
         <div className="flex items-center gap-2 mb-4">
           <ArrowUpRight className="h-4 w-4 text-indigo-600 shrink-0" aria-hidden="true" />
           <h3 className="font-display text-base font-semibold text-slate-900">
-            Specific Improvement Recommendations
+            Development Recommendations
           </h3>
         </div>
 
         <div className="divide-y divide-slate-100">
-          {improvementRecommendations.map((rec, idx) => (
+          {developmentRecommendations.map((rec, idx) => (
             <div key={idx} className="py-4 first:pt-1 last:pb-1">
               <div className="flex flex-wrap items-center gap-2 text-xs mb-1.5">
                 <span className={`font-semibold ${getPriorityStyle(rec.priority)}`}>
@@ -104,6 +114,10 @@ export function InsightsAndStrategy({ evaluation }: InsightsAndStrategyProps) {
                   ·
                 </span>
                 <span className="font-medium text-slate-700">{rec.targetVariable}</span>
+                <span className="text-slate-300" aria-hidden="true">
+                  ·
+                </span>
+                <span className="font-medium text-teal-700">{rec.targetDimension}</span>
                 {rec.timestampHint && (
                   <>
                     <span className="text-slate-300" aria-hidden="true">
@@ -208,6 +222,21 @@ export function InsightsAndStrategy({ evaluation }: InsightsAndStrategyProps) {
           </ul>
         </div>
       </section>
+
+      {/* Page 24 Methodological Note */}
+      <aside
+        aria-label="Methodological Note"
+        className="bg-slate-100/80 border border-slate-200 rounded-xl px-5 py-4 flex items-start gap-3 text-xs text-slate-600 leading-relaxed"
+      >
+        <Info className="h-4 w-4 text-slate-500 shrink-0 mt-0.5" aria-hidden="true" />
+        <p>
+          <span className="font-semibold text-slate-800">Important:</span> The rubric evaluates the
+          content&apos;s demonstrated characteristics and its potential to encourage Interaction,
+          Participation, and Sharing. The effectiveness levels are assessment classifications
+          developed from the study&apos;s findings, not proof of causal effects on actual consumer
+          behavior.
+        </p>
+      </aside>
     </div>
   );
 }

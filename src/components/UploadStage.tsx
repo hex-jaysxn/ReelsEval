@@ -213,7 +213,7 @@ export function UploadStage({
                 Evaluate Reels Marketing & Brand Engagement
               </h1>
               <p className="mt-1.5 text-sm text-slate-600 leading-relaxed max-w-2xl">
-                Upload a short-form marketing video for real multimodal analysis using Google Gemini Free Tier. Scored across four 5-point Reels Marketing Content variables (20 points total) and three Brand Engagement pillars.
+                Upload a short-form marketing video for real multimodal analysis using Google Gemini Free Tier. Each of the four Reels Marketing Content variables is scored across Interaction, Participation, and Sharing (2–5 rating scale; 8.00–20.00 overall score).
               </p>
             </div>
 
@@ -310,35 +310,39 @@ export function UploadStage({
             {/* Rubric preview strip */}
             <div className="mt-6 pt-5 border-t border-slate-100 grid grid-cols-2 sm:grid-cols-4 gap-4">
               <div>
-                <p className="text-xs font-medium text-slate-500">Related Content</p>
+                <p className="text-xs font-medium text-slate-500">Informational</p>
                 <p className="mt-0.5 font-mono text-sm font-semibold tabular-nums text-slate-900">
-                  0–5 pts
+                  2.00–5.00
                 </p>
+                <p className="text-[11px] text-slate-400 tabular-nums">Mean 3.40 · r=0.372</p>
               </div>
               <div>
                 <p className="text-xs font-medium text-slate-500">Entertainment</p>
                 <p className="mt-0.5 font-mono text-sm font-semibold tabular-nums text-slate-900">
-                  0–5 pts
+                  2.00–5.00
                 </p>
-              </div>
-              <div>
-                <p className="text-xs font-medium text-slate-500">Informational</p>
-                <p className="mt-0.5 font-mono text-sm font-semibold tabular-nums text-slate-900">
-                  0–5 pts
-                </p>
+                <p className="text-[11px] text-slate-400 tabular-nums">Mean 3.19 · r=0.463</p>
               </div>
               <div>
                 <p className="text-xs font-medium text-slate-500">Trendiness</p>
                 <p className="mt-0.5 font-mono text-sm font-semibold tabular-nums text-slate-900">
-                  0–5 pts
+                  2.00–5.00
                 </p>
+                <p className="text-[11px] text-slate-400 tabular-nums">Mean 3.43 · r=0.306</p>
+              </div>
+              <div>
+                <p className="text-xs font-medium text-slate-500">Relatable</p>
+                <p className="mt-0.5 font-mono text-sm font-semibold tabular-nums text-slate-900">
+                  2.00–5.00
+                </p>
+                <p className="text-[11px] text-slate-400 tabular-nums">Mean 3.31 · r=0.554</p>
               </div>
             </div>
           </div>
 
           <div className="mt-8 pt-5 border-t border-slate-200 flex flex-wrap items-center justify-between gap-4">
             <div className="text-xs text-slate-500">
-              <span>Evaluates Interaction, Sharing & Participation alongside content quality</span>
+              <span>Each variable averaged across Interaction, Participation & Sharing (8.00–20.00 total)</span>
             </div>
 
             <button

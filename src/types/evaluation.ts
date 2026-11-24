@@ -11,35 +11,64 @@ export type CampaignObjective =
   | 'Community Engagement'
   | 'Educational Authority';
 
-export interface CategoryScoreDetail {
-  score: number; // 0 to 5
+export type EffectivenessLevel =
+  | 'Very Effective'
+  | 'Effective'
+  | 'Moderately Effective'
+  | 'Less Effective';
+
+export type ReelsVariableKey = 'informational' | 'entertainment' | 'trendiness' | 'relatable';
+
+export interface EngagementDimensionRating {
+  score: number; // Integer 2 to 5 per PDF rubric
   rationale: string;
+}
+
+export interface VariableAssessment {
+  key: ReelsVariableKey;
+  label: string;
+  surveyMean: number;
+  correlationLabel: string;
+  interaction: EngagementDimensionRating;
+  participation: EngagementDimensionRating;
+  sharing: EngagementDimensionRating;
+  averageScore: number; // (interaction + participation + sharing) / 3, 2.00 to 5.00
+  effectivenessLevel: EffectivenessLevel;
+  effectivenessInterpretation: string;
   observedCues: string[];
 }
 
-export interface ReelsMarketingScores {
-  relatedContent: CategoryScoreDetail;
-  entertainmentContent: CategoryScoreDetail;
-  informational: CategoryScoreDetail;
-  trendiness: CategoryScoreDetail;
+export interface ReelsMarketingVariables {
+  informational: VariableAssessment;
+  entertainment: VariableAssessment;
+  trendiness: VariableAssessment;
+  relatable: VariableAssessment;
 }
 
-export interface BrandEngagementScores {
-  interaction: CategoryScoreDetail;
-  sharing: CategoryScoreDetail;
-  participation: CategoryScoreDetail;
+export interface BrandEngagementDimensionSummary {
+  interactionMean: number; // Mean across the 4 content variables (2.00 - 5.00)
+  participationMean: number;
+  sharingMean: number;
+  overallEngagementMean: number;
+  dominantDriver: 'Interaction' | 'Participation' | 'Sharing';
+  lowestDriver: 'Interaction' | 'Participation' | 'Sharing';
 }
 
-export interface ImprovementRecommendation {
+export interface DevelopmentRecommendation {
   priority: 'High' | 'Medium' | 'Low';
   targetVariable: string;
+  targetDimension: 'Interaction' | 'Participation' | 'Sharing' | 'All Dimensions';
   recommendation: string;
   expectedImpact: string;
   timestampHint?: string;
 }
 
 export interface AudienceSegmentPrediction {
-  segment: 'Business Owners' | 'Gen Z Consumers' | 'Social Media Content Creators' | 'Marketing Professionals';
+  segment:
+    | 'Business Owners'
+    | 'Gen Z Consumers'
+    | 'Social Media Content Creators'
+    | 'Marketing Professionals';
   predictedSentiment: 'Highly Receptive' | 'Moderately Receptive' | 'Mixed' | 'Low Resonance';
   responseSummary: string;
   likelyAction: string;
@@ -68,28 +97,24 @@ export interface EvaluationContext {
 }
 
 export interface ReelEvaluation {
+  schemaVersion: 2;
   id: string;
   createdAt: string;
   modelUsed: string;
   videoMetadata: ReelVideoMetadata;
   context: EvaluationContext;
   executiveSummary: string;
-  overallScore: number; // 0 to 20 (sum of 4 reels marketing variables)
+  overallScore: number; // Sum of 4 variable averages: 8.00 to 20.00
   scoreTier: {
-    label: string;
+    level: EffectivenessLevel;
     summary: string;
     tone: 'positive' | 'moderate' | 'caution' | 'critical';
   };
-  reelsMarketingScores: ReelsMarketingScores;
-  brandEngagementScores: BrandEngagementScores;
-  brandEngagementSummary: {
-    totalOutOf15: number;
-    percentage: number;
-    dominantDriver: string;
-  };
+  variables: ReelsMarketingVariables;
+  brandEngagementSummary: BrandEngagementDimensionSummary;
   strengths: string[];
-  weaknesses: string[];
-  improvementRecommendations: ImprovementRecommendation[];
+  areasForImprovement: string[];
+  developmentRecommendations: DevelopmentRecommendation[];
   predictedAudienceResponse: AudienceSegmentPrediction[];
   marketingStrategyRecommendations: MarketingStrategyItem[];
   researchRecommendations: string[];

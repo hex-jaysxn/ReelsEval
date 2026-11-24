@@ -1,7 +1,10 @@
 import type {
-  BrandEngagementScores,
+  BrandEngagementDimensionSummary,
+  EffectivenessLevel,
   ReelEvaluation,
-  ReelsMarketingScores,
+  ReelsMarketingVariables,
+  ReelsVariableKey,
+  VariableAssessment,
 } from '../types/evaluation.ts';
 
 export const ALLOWED_VIDEO_MIME_TYPES = [
@@ -14,9 +17,49 @@ export const ALLOWED_VIDEO_MIME_TYPES = [
 
 export const ALLOWED_VIDEO_EXTENSIONS = ['.mp4', '.webm', '.mov', '.m4v', '.mpeg', '.mpg'] as const;
 
-// Optimized for Gemini API Free Tier limits (keeps payload & processing reliable)
+// Optimized for Gemini API Free Tier limits
 export const MAX_VIDEO_SIZE_BYTES = 45 * 1024 * 1024; // 45 MB
-export const INLINE_THRESHOLD_BYTES = 14 * 1024 * 1024; // 14 MB (base64 stays < 20 MB request ceiling)
+export const INLINE_THRESHOLD_BYTES = 14 * 1024 * 1024; // 14 MB
+
+export const MIN_DIMENSION_RATING = 2;
+export const MAX_DIMENSION_RATING = 5;
+export const MIN_OVERALL_SCORE = 8;
+export const MAX_OVERALL_SCORE = 20;
+
+export const STUDY_VARIABLE_META: Record<
+  ReelsVariableKey,
+  {
+    code: string;
+    label: string;
+    surveyMean: number;
+    correlationLabel: string;
+  }
+> = {
+  informational: {
+    code: 'A',
+    label: 'Informational Content',
+    surveyMean: 3.4,
+    correlationLabel: '0.372 (Weak)',
+  },
+  entertainment: {
+    code: 'B',
+    label: 'Entertainment Content',
+    surveyMean: 3.19,
+    correlationLabel: '0.463 (Moderate)',
+  },
+  trendiness: {
+    code: 'C',
+    label: 'Trendiness',
+    surveyMean: 3.43,
+    correlationLabel: '0.306 (Weak)',
+  },
+  relatable: {
+    code: 'D',
+    label: 'Relatable Content',
+    surveyMean: 3.31,
+    correlationLabel: '0.554 (Moderate)',
+  },
+};
 
 export interface VideoValidationInput {
   name: string;
@@ -70,7 +113,11 @@ export function validateVideoMetadata(file: VideoValidationInput): VideoValidati
     };
   }
 
-  if (normalizedType && !normalizedType.startsWith('video/') && normalizedType !== 'application/octet-stream') {
+  if (
+    normalizedType &&
+    !normalizedType.startsWith('video/') &&
+    normalizedType !== 'application/octet-stream'
+  ) {
     return {
       valid: false,
       errorCode: 'UNSUPPORTED_VIDEO',
@@ -94,79 +141,194 @@ export function resolveVideoMimeType(fileName: string, providedMime?: string): s
   return 'video/mp4';
 }
 
-export function clampScore(value: number, max = 5): number {
+/**
+ * PDF Scoring Guide: 5 - Very Effective | 4 - Effective | 3 - Moderately Effective | 2 - Less Effective
+ */
+export function clampDimensionRating(value: number): number {
   if (typeof value !== 'number' || Number.isNaN(value) || !Number.isFinite(value)) {
-    return 0;
+    return MIN_DIMENSION_RATING;
   }
-  const clamped = Math.max(0, Math.min(max, value));
-  // Round to nearest 0.5 for crisp rubric scoring
-  return Math.round(clamped * 2) / 2;
+  const clamped = Math.max(MIN_DIMENSION_RATING, Math.min(MAX_DIMENSION_RATING, value));
+  return Math.round(clamped);
 }
 
-export function computeOverallScore(scores: ReelsMarketingScores): number {
-  const sum =
-    clampScore(scores.relatedContent.score) +
-    clampScore(scores.entertainmentContent.score) +
-    clampScore(scores.informational.score) +
-    clampScore(scores.trendiness.score);
-  return Math.round(sum * 10) / 10;
+export function round2(value: number): number {
+  return Math.round(value * 100) / 100;
 }
 
-export function computeEngagementSummary(scores: BrandEngagementScores): {
-  totalOutOf15: number;
-  percentage: number;
-  dominantDriver: string;
+/**
+ * Formula for each variable: (Interaction + Participation + Sharing) / 3
+ */
+export function computeVariableAverage(
+  interaction: number,
+  participation: number,
+  sharing: number
+): number {
+  const i = clampDimensionRating(interaction);
+  const p = clampDimensionRating(participation);
+  const s = clampDimensionRating(sharing);
+  return round2((i + p + s) / 3);
+}
+
+/**
+ * Section IV: Effectiveness interpretation per variable
+ * 4.25–5.00: Very Effective
+ * 3.50–4.24: Effective
+ * 2.75–3.49: Moderately Effective
+ * 2.00–2.74: Less Effective
+ */
+export function getVariableEffectiveness(averageScore: number): {
+  level: EffectivenessLevel;
+  interpretation: string;
 } {
-  const interaction = clampScore(scores.interaction.score);
-  const sharing = clampScore(scores.sharing.score);
-  const participation = clampScore(scores.participation.score);
-  const totalOutOf15 = Math.round((interaction + sharing + participation) * 10) / 10;
-  const percentage = Math.round((totalOutOf15 / 15) * 100);
-
-  const pairs = [
-    { label: 'Interaction', value: interaction },
-    { label: 'Sharing', value: sharing },
-    { label: 'Participation', value: participation },
-  ];
-  pairs.sort((a, b) => b.value - a.value);
-
+  if (averageScore >= 4.25) {
+    return {
+      level: 'Very Effective',
+      interpretation:
+        'The content characteristic is highly effective in encouraging brand engagement.',
+    };
+  }
+  if (averageScore >= 3.5) {
+    return {
+      level: 'Effective',
+      interpretation: 'The content characteristic is effective in encouraging brand engagement.',
+    };
+  }
+  if (averageScore >= 2.75) {
+    return {
+      level: 'Moderately Effective',
+      interpretation:
+        'The content characteristic shows moderate effectiveness but needs improvement.',
+    };
+  }
   return {
-    totalOutOf15,
-    percentage,
-    dominantDriver: pairs[0].label,
+    level: 'Less Effective',
+    interpretation:
+      'The content characteristic demonstrates limited effectiveness in encouraging brand engagement.',
   };
 }
 
+export function buildVariableAssessment(input: {
+  key: ReelsVariableKey;
+  interaction: { score: number; rationale: string };
+  participation: { score: number; rationale: string };
+  sharing: { score: number; rationale: string };
+  observedCues: string[];
+}): VariableAssessment {
+  const meta = STUDY_VARIABLE_META[input.key];
+  const iScore = clampDimensionRating(input.interaction.score);
+  const pScore = clampDimensionRating(input.participation.score);
+  const sScore = clampDimensionRating(input.sharing.score);
+  const averageScore = computeVariableAverage(iScore, pScore, sScore);
+  const eff = getVariableEffectiveness(averageScore);
+
+  return {
+    key: input.key,
+    label: meta.label,
+    surveyMean: meta.surveyMean,
+    correlationLabel: meta.correlationLabel,
+    interaction: {
+      score: iScore,
+      rationale: input.interaction.rationale || '',
+    },
+    participation: {
+      score: pScore,
+      rationale: input.participation.rationale || '',
+    },
+    sharing: {
+      score: sScore,
+      rationale: input.sharing.rationale || '',
+    },
+    averageScore,
+    effectivenessLevel: eff.level,
+    effectivenessInterpretation: eff.interpretation,
+    observedCues: Array.isArray(input.observedCues) ? input.observedCues : [],
+  };
+}
+
+/**
+ * Formula for overall assessment: Informational + Entertainment + Trendiness + Relatable
+ * Range: 8.00 to 20.00
+ */
+export function computeOverallScore(variables: ReelsMarketingVariables): number {
+  const total =
+    variables.informational.averageScore +
+    variables.entertainment.averageScore +
+    variables.trendiness.averageScore +
+    variables.relatable.averageScore;
+  return round2(Math.max(MIN_OVERALL_SCORE, Math.min(MAX_OVERALL_SCORE, total)));
+}
+
+/**
+ * Section V: Overall Reels Marketing Content Effectiveness
+ * 17.00–20.00: Very Effective
+ * 14.00–16.99: Effective
+ * 11.00–13.99: Moderately Effective
+ *  8.00–10.99: Less Effective
+ */
 export function getScoreTier(overallScore: number): ReelEvaluation['scoreTier'] {
   if (overallScore >= 17) {
     return {
-      label: 'High Viral & Brand Impact',
+      level: 'Very Effective',
       summary:
-        'Strong alignment across relevance, entertainment pacing, informational clarity, and trend resonance.',
+        'The Reel effectively incorporates all four characteristics and demonstrates strong potential to encourage brand engagement.',
       tone: 'positive',
     };
   }
-  if (overallScore >= 13) {
+  if (overallScore >= 14) {
     return {
-      label: 'Strong Performance',
+      level: 'Effective',
       summary:
-        'Solid short-form marketing foundation with targeted optimization opportunities to maximize reach.',
+        'The Reel demonstrates good effectiveness in encouraging brand engagement through its content characteristics.',
       tone: 'moderate',
     };
   }
-  if (overallScore >= 9) {
+  if (overallScore >= 11) {
     return {
-      label: 'Moderate Potential',
+      level: 'Moderately Effective',
       summary:
-        'Core message is present, but hook pacing, trend alignment, or engagement triggers need refinement.',
+        'The Reel shows moderate effectiveness but requires improvement in some content characteristics.',
       tone: 'caution',
     };
   }
   return {
-    label: 'Needs Restructuring',
+    level: 'Less Effective',
     summary:
-      'Significant gaps in short-form storytelling, audience relevance, or clear value delivery.',
+      'The Reel demonstrates limited effectiveness and requires significant improvement in its content characteristics.',
     tone: 'critical',
+  };
+}
+
+export function computeEngagementSummary(
+  variables: ReelsMarketingVariables
+): BrandEngagementDimensionSummary {
+  const list = [
+    variables.informational,
+    variables.entertainment,
+    variables.trendiness,
+    variables.relatable,
+  ];
+  const interactionMean = round2(list.reduce((acc, v) => acc + v.interaction.score, 0) / 4);
+  const participationMean = round2(list.reduce((acc, v) => acc + v.participation.score, 0) / 4);
+  const sharingMean = round2(list.reduce((acc, v) => acc + v.sharing.score, 0) / 4);
+  const overallEngagementMean = round2(
+    (interactionMean + participationMean + sharingMean) / 3
+  );
+
+  const ranked: { label: 'Interaction' | 'Participation' | 'Sharing'; value: number }[] = [
+    { label: 'Interaction', value: interactionMean },
+    { label: 'Participation', value: participationMean },
+    { label: 'Sharing', value: sharingMean },
+  ];
+  ranked.sort((a, b) => b.value - a.value);
+
+  return {
+    interactionMean,
+    participationMean,
+    sharingMean,
+    overallEngagementMean,
+    dominantDriver: ranked[0].label,
+    lowestDriver: ranked[ranked.length - 1].label,
   };
 }
 
@@ -191,13 +353,12 @@ export function buildReportMarkdown(evaluation: ReelEvaluation): string {
     context,
     overallScore,
     scoreTier,
-    reelsMarketingScores,
-    brandEngagementScores,
+    variables,
     brandEngagementSummary,
     executiveSummary,
     strengths,
-    weaknesses,
-    improvementRecommendations,
+    areasForImprovement,
+    developmentRecommendations,
     predictedAudienceResponse,
     marketingStrategyRecommendations,
     researchRecommendations,
@@ -205,8 +366,15 @@ export function buildReportMarkdown(evaluation: ReelEvaluation): string {
     modelUsed,
   } = evaluation;
 
+  const varList = [
+    variables.informational,
+    variables.entertainment,
+    variables.trendiness,
+    variables.relatable,
+  ];
+
   const lines: string[] = [
-    `# ReelsEvaluator — Marketing Video Evaluation Report`,
+    `# ReelsEvaluator — Reels Marketing Content Effectiveness Assessment`,
     ``,
     `- **Video File:** ${videoMetadata.fileName}`,
     `- **File Size:** ${formatBytes(videoMetadata.fileSizeBytes)}`,
@@ -216,35 +384,32 @@ export function buildReportMarkdown(evaluation: ReelEvaluation): string {
     `- **Evaluated At:** ${new Date(createdAt).toLocaleString()}`,
     `- **Model:** ${modelUsed} (Google Gemini API Free Tier)`,
     ``,
-    `## Overall Score: ${overallScore} / 20 — ${scoreTier.label}`,
+    `## Overall Effectiveness Score: ${overallScore.toFixed(2)} / 20 — ${scoreTier.level}`,
     ``,
     `${executiveSummary}`,
     ``,
-    `## Reels Marketing Content Breakdown (5 Points Each)`,
+    `*${scoreTier.summary}*`,
     ``,
-    `| Variable | Score | Rationale |`,
-    `| --- | --- | --- |`,
-    `| Related Content | ${reelsMarketingScores.relatedContent.score} / 5 | ${reelsMarketingScores.relatedContent.rationale.replace(/\|/g, '/')} |`,
-    `| Entertainment Content | ${reelsMarketingScores.entertainmentContent.score} / 5 | ${reelsMarketingScores.entertainmentContent.rationale.replace(/\|/g, '/')} |`,
-    `| Informational | ${reelsMarketingScores.informational.score} / 5 | ${reelsMarketingScores.informational.rationale.replace(/\|/g, '/')} |`,
-    `| Trendiness | ${reelsMarketingScores.trendiness.score} / 5 | ${reelsMarketingScores.trendiness.rationale.replace(/\|/g, '/')} |`,
+    `## Scoring & Computation Matrix (2–5 Rating Scale)`,
     ``,
-    `## Brand Engagement Characteristics (${brandEngagementSummary.totalOutOf15} / 15 · ${brandEngagementSummary.percentage}%)`,
+    `| Reels Marketing Content Variable | Interaction | Participation | Sharing | Average | Effectiveness Level | Survey Mean & Correlation |`,
+    `| --- | ---: | ---: | ---: | ---: | --- | --- |`,
+    ...varList.map(
+      (v) =>
+        `| ${v.label} | ${v.interaction.score} | ${v.participation.score} | ${v.sharing.score} | ${v.averageScore.toFixed(2)} | ${v.effectivenessLevel} | Mean ${v.surveyMean.toFixed(2)} · r=${v.correlationLabel} |`
+    ),
+    `| **Total Overall Score** | **Mean ${brandEngagementSummary.interactionMean.toFixed(2)}** | **Mean ${brandEngagementSummary.participationMean.toFixed(2)}** | **Mean ${brandEngagementSummary.sharingMean.toFixed(2)}** | **${overallScore.toFixed(2)} / 20** | **${scoreTier.level}** | — |`,
     ``,
-    `- **Interaction (${brandEngagementScores.interaction.score}/5):** ${brandEngagementScores.interaction.rationale}`,
-    `- **Sharing (${brandEngagementScores.sharing.score}/5):** ${brandEngagementScores.sharing.rationale}`,
-    `- **Participation (${brandEngagementScores.participation.score}/5):** ${brandEngagementScores.participation.rationale}`,
-    ``,
-    `## Key Strengths`,
+    `## Strengths`,
     ...strengths.map((item) => `- ${item}`),
     ``,
-    `## Key Weaknesses`,
-    ...weaknesses.map((item) => `- ${item}`),
+    `## Areas for Improvement (Lowest-Scoring Characteristics & Dimensions)`,
+    ...areasForImprovement.map((item) => `- ${item}`),
     ``,
-    `## Specific Improvement Recommendations`,
-    ...improvementRecommendations.map(
+    `## Development Recommendations`,
+    ...developmentRecommendations.map(
       (rec) =>
-        `- **[${rec.priority} · ${rec.targetVariable}]** ${rec.recommendation} *(Expected Impact: ${rec.expectedImpact}${rec.timestampHint ? ` · Cue: ${rec.timestampHint}` : ''})*`
+        `- **[${rec.priority} · ${rec.targetVariable} · ${rec.targetDimension}]** ${rec.recommendation} *(Expected Impact: ${rec.expectedImpact}${rec.timestampHint ? ` · Cue: ${rec.timestampHint}` : ''})*`
     ),
     ``,
     `## Predicted Audience Response`,
@@ -261,6 +426,9 @@ export function buildReportMarkdown(evaluation: ReelEvaluation): string {
     ``,
     `## Research Recommendations`,
     ...researchRecommendations.map((r) => `- ${r}`),
+    ``,
+    `---`,
+    `*Methodological Note: The rubric evaluates the content's demonstrated characteristics and its potential to encourage Interaction, Participation, and Sharing. The effectiveness levels are assessment classifications developed from the study's findings, not proof of causal effects on actual consumer behavior.*`,
     ``,
   ];
 

@@ -3,17 +3,15 @@ import crypto from 'node:crypto';
 import { GoogleGenAI, ThinkingLevel, Type } from '@google/genai';
 import type {
   AudienceSegmentPrediction,
-  BrandEngagementScores,
+  DevelopmentRecommendation,
   EvaluationContext,
-  ImprovementRecommendation,
   MarketingStrategyItem,
   ReelEvaluation,
-  ReelsMarketingScores,
   ReelVideoMetadata,
 } from '../types/evaluation.ts';
 import {
   INLINE_THRESHOLD_BYTES,
-  clampScore,
+  buildVariableAssessment,
   computeEngagementSummary,
   computeOverallScore,
   getScoreTier,
@@ -51,24 +49,44 @@ export class GeminiServiceError extends Error {
   }
 }
 
-const categoryDetailSchema = {
+const dimensionRatingSchema = {
   type: Type.OBJECT,
   properties: {
     score: {
-      type: Type.NUMBER,
-      description: 'Score from 0 to 5 in 0.5 increments (e.g., 0, 1.5, 3, 4.5, 5).',
+      type: Type.INTEGER,
+      description:
+        'Integer score from 2 to 5 strictly per the scoring guide: 5 = Very Effective, 4 = Effective, 3 = Moderately Effective, 2 = Less Effective.',
     },
     rationale: {
       type: Type.STRING,
-      description: 'Concise 1-2 sentence evidence-based justification referencing what happens in the video.',
+      description: 'Concise 1-2 sentence justification citing specific video evidence for this rating.',
+    },
+  },
+  required: ['score', 'rationale'],
+};
+
+const variableMatrixSchema = {
+  type: Type.OBJECT,
+  properties: {
+    interaction: {
+      ...dimensionRatingSchema,
+      description: 'Rating (2-5) for how well this content variable encourages viewer interaction (likes, comments, reactions, questions).',
+    },
+    participation: {
+      ...dimensionRatingSchema,
+      description: 'Rating (2-5) for how well this content variable encourages viewer participation (discussions, prompts, challenges, UGC).',
+    },
+    sharing: {
+      ...dimensionRatingSchema,
+      description: 'Rating (2-5) for how well this content variable encourages saving or sharing with friends/peers.',
     },
     observedCues: {
       type: Type.ARRAY,
       items: { type: Type.STRING },
-      description: '2-3 specific visual, audio, text-overlay, or pacing cues observed in the video.',
+      description: '2-3 specific visual, audio, caption, or pacing cues observed in the video.',
     },
   },
-  required: ['score', 'rationale', 'observedCues'],
+  required: ['interaction', 'participation', 'sharing', 'observedCues'],
 };
 
 const evaluationResponseSchema = {
@@ -76,59 +94,44 @@ const evaluationResponseSchema = {
   properties: {
     executiveSummary: {
       type: Type.STRING,
-      description: '2-3 sentence executive summary of the Reel marketing effectiveness and engagement potential.',
+      description:
+        '2-3 sentence executive summary of the Reel marketing effectiveness and engagement potential.',
     },
-    reelsMarketingScores: {
+    variables: {
       type: Type.OBJECT,
       properties: {
-        relatedContent: {
-          ...categoryDetailSchema,
-          description: 'Relevance of content to target audience, brand story, and niche context (0-5).',
-        },
-        entertainmentContent: {
-          ...categoryDetailSchema,
-          description: 'Hook strength, pacing, storytelling, visual/audio appeal, and retention (0-5).',
-        },
         informational: {
-          ...categoryDetailSchema,
-          description: 'Clarity of value proposition, educational utility, and actionable takeaways (0-5).',
+          ...variableMatrixSchema,
+          description: 'A. Informational Content evaluated across Interaction, Participation, and Sharing (2-5 each).',
+        },
+        entertainment: {
+          ...variableMatrixSchema,
+          description: 'B. Entertainment Content evaluated across Interaction, Participation, and Sharing (2-5 each).',
         },
         trendiness: {
-          ...categoryDetailSchema,
-          description: 'Alignment with current short-form formats, audio trends, editing cadence, and cultural hooks (0-5).',
+          ...variableMatrixSchema,
+          description: 'C. Trendiness evaluated across Interaction, Participation, and Sharing (2-5 each).',
+        },
+        relatable: {
+          ...variableMatrixSchema,
+          description: 'D. Relatable Content evaluated across Interaction, Participation, and Sharing (2-5 each).',
         },
       },
-      required: ['relatedContent', 'entertainmentContent', 'informational', 'trendiness'],
-    },
-    brandEngagementScores: {
-      type: Type.OBJECT,
-      properties: {
-        interaction: {
-          ...categoryDetailSchema,
-          description: 'Likelihood of driving likes, comments, saves, and direct conversation triggers (0-5).',
-        },
-        sharing: {
-          ...categoryDetailSchema,
-          description: 'Likelihood of viewers sharing via DM, reposting, or sending to peers (0-5).',
-        },
-        participation: {
-          ...categoryDetailSchema,
-          description: 'Likelihood of prompting remixes, stitches, challenges, UGC, or CTA action (0-5).',
-        },
-      },
-      required: ['interaction', 'sharing', 'participation'],
+      required: ['informational', 'entertainment', 'trendiness', 'relatable'],
     },
     strengths: {
       type: Type.ARRAY,
       items: { type: Type.STRING },
-      description: '3-5 concrete strengths observed in the video.',
+      description:
+        '3-5 strengths identifying the characteristics and engagement dimensions that the Reel demonstrates effectively.',
     },
-    weaknesses: {
+    areasForImprovement: {
       type: Type.ARRAY,
       items: { type: Type.STRING },
-      description: '3-5 concrete weaknesses or missed opportunities observed in the video.',
+      description:
+        '3-5 areas for improvement identifying the lowest-scoring characteristics and engagement dimensions.',
     },
-    improvementRecommendations: {
+    developmentRecommendations: {
       type: Type.ARRAY,
       items: {
         type: Type.OBJECT,
@@ -140,22 +143,33 @@ const evaluationResponseSchema = {
           targetVariable: {
             type: Type.STRING,
             description:
-              'One of: Related Content, Entertainment Content, Informational, Trendiness, Interaction, Sharing, Participation.',
+              'One of: Informational Content, Entertainment Content, Trendiness, Relatable Content.',
+          },
+          targetDimension: {
+            type: Type.STRING,
+            description: 'One of: Interaction, Participation, Sharing, All Dimensions.',
           },
           recommendation: {
             type: Type.STRING,
-            description: 'Specific, actionable edit or creative change.',
+            description:
+              'Specific, actionable suggestion on how the content creator or business owner can improve the Reel based on the rubric.',
           },
           expectedImpact: {
             type: Type.STRING,
-            description: 'Expected lift in retention, engagement, or conversion.',
+            description: 'Expected lift in dimension rating or engagement behavior.',
           },
           timestampHint: {
             type: Type.STRING,
-            description: 'Timestamp or video segment reference (e.g., 0:00-0:03 Hook).',
+            description: 'Optional timestamp or video segment reference (e.g., 0:00-0:03).',
           },
         },
-        required: ['priority', 'targetVariable', 'recommendation', 'expectedImpact'],
+        required: [
+          'priority',
+          'targetVariable',
+          'targetDimension',
+          'recommendation',
+          'expectedImpact',
+        ],
       },
     },
     predictedAudienceResponse: {
@@ -170,7 +184,8 @@ const evaluationResponseSchema = {
           },
           predictedSentiment: {
             type: Type.STRING,
-            description: 'Must be one of: Highly Receptive, Moderately Receptive, Mixed, Low Resonance.',
+            description:
+              'Must be one of: Highly Receptive, Moderately Receptive, Mixed, Low Resonance.',
           },
           responseSummary: {
             type: Type.STRING,
@@ -178,7 +193,7 @@ const evaluationResponseSchema = {
           },
           likelyAction: {
             type: Type.STRING,
-            description: 'Most probable behavioral action (e.g. DM share, skip at 3s, bookmark for reference).',
+            description: 'Most probable viewer action (e.g., save for reference, DM share, skip).',
           },
         },
         required: ['segment', 'predictedSentiment', 'responseSummary', 'likelyAction'],
@@ -200,16 +215,15 @@ const evaluationResponseSchema = {
     researchRecommendations: {
       type: Type.ARRAY,
       items: { type: Type.STRING },
-      description: '3-4 research experiments, A/B tests, or KPI measurement recommendations.',
+      description: '3-4 research experiments, A/B tests, or KPI tracking recommendations.',
     },
   },
   required: [
     'executiveSummary',
-    'reelsMarketingScores',
-    'brandEngagementScores',
+    'variables',
     'strengths',
-    'weaknesses',
-    'improvementRecommendations',
+    'areasForImprovement',
+    'developmentRecommendations',
     'predictedAudienceResponse',
     'marketingStrategyRecommendations',
     'researchRecommendations',
@@ -322,6 +336,16 @@ function normalizePriority(val: string): 'High' | 'Medium' | 'Low' {
   return 'Medium';
 }
 
+function normalizeDimension(
+  val: string
+): DevelopmentRecommendation['targetDimension'] {
+  const lower = (val || '').toLowerCase();
+  if (lower.includes('interact')) return 'Interaction';
+  if (lower.includes('participat')) return 'Participation';
+  if (lower.includes('shar')) return 'Sharing';
+  return 'All Dimensions';
+}
+
 function normalizeSentiment(
   val: string
 ): AudienceSegmentPrediction['predictedSentiment'] {
@@ -376,19 +400,83 @@ export async function evaluateReelWithGemini(params: {
   const { filePath, videoMetadata, context } = params;
   const mimeType = videoMetadata.mimeType || 'video/mp4';
 
-  const systemInstruction = `You are a senior short-form video marketing researcher and brand engagement analyst for ReelsEvaluator.
-Analyze the uploaded Reels/short-form marketing video across TWO linked frameworks:
-1. Characteristics of Reels Marketing Content (5 points max per variable, total 20):
-   - Related Content (0-5): Audience & brand alignment, contextual relevance, niche fit.
-   - Entertainment Content (0-5): 0-3s hook strength, pacing, storytelling, audio-visual craft, retention pull.
-   - Informational (0-5): Value proposition clarity, educational/product utility, concrete takeaways.
-   - Trendiness (0-5): Current short-form editing cadence, cultural/audio format fit, native platform feel.
-2. Characteristics of Brand Engagement (5 points max per variable):
-   - Interaction (0-5): Potential to trigger likes, comments, saves, and replies.
-   - Sharing (0-5): DM shareability, social currency, peer-to-peer send potential.
-   - Participation (0-5): Remix/duet/challenge/UGC potential and CTA conversion follow-through.
+  const systemInstruction = `You are a senior short-form video marketing researcher evaluating Reels using the "Reels Marketing Content Effectiveness Assessment" rubric.
 
-Be strictly grounded in what you actually see and hear in the video (visuals, captions, pacing, audio, CTAs). Avoid generic boilerplate. Keep all text concise, analytical, and directly actionable.`;
+SCORING GUIDE (STRICTLY INTEGER 2, 3, 4, or 5 per cell):
+5 = Very Effective | 4 = Effective | 3 = Moderately Effective | 2 = Less Effective
+Note: Minimum rating is 2, maximum rating is 5. Never output 0 or 1.
+
+Evaluate each of the 4 Reels Marketing Content Variables across all 3 Brand Engagement Dimensions (Interaction, Participation, Sharing):
+
+A. INFORMATIONAL CONTENT (Survey Mean: 3.40 | Brand Engagement Correlation: 0.372 Weak):
+- Interaction:
+  5: Presents clear and useful product information that encourages viewers to react, comment, or ask questions.
+  4: Provides relevant product information that encourages viewers to express their reactions.
+  3: Provides basic product information but does little to encourage viewers to react or comment.
+  2: Presents unclear or insufficient product information, resulting in little encouragement for viewer interaction.
+- Participation:
+  5: Provides understandable information that encourages viewers to participate in discussions or respond to product-related questions.
+  4: Explains the product sufficiently to encourage viewers to respond to its message or prompts.
+  3: Presents information but offers limited opportunities for viewers to participate.
+  2: Provides confusing or incomplete information that makes viewer participation difficult.
+- Sharing:
+  5: Presents valuable product details that viewers would want to save or share with others.
+  4: Provides useful information that viewers may share with friends or save for future reference.
+  3: Contains some useful details, but its information gives viewers little reason to share or save it.
+  2: Lacks useful product details that would motivate viewers to share or save the content.
+
+B. ENTERTAINMENT CONTENT (Survey Mean: 3.19 | Brand Engagement Correlation: 0.463 Moderate):
+- Interaction:
+  5: Uses highly entertaining elements that capture viewers' attention and encourage them to like, comment, or react.
+  4: Uses enjoyable content that encourages viewers to express their reactions.
+  3: Has some entertaining elements but does not consistently encourage viewers to interact.
+  2: Lacks entertaining elements that could encourage viewers to like, comment, or react.
+- Participation:
+  5: Uses enjoyable and engaging activities that encourage viewers to join challenges or participate.
+  4: Includes entertaining elements that invite viewers to participate in its activities or prompts.
+  3: Provides limited entertainment that generates little interest in participating.
+  2: Is unengaging and provides little motivation for viewers to participate.
+- Sharing:
+  5: Provides an entertaining experience that makes viewers want to share it with friends or post it on their stories.
+  4: Contains entertaining moments that viewers may want to share with others.
+  3: Is somewhat enjoyable but does not strongly motivate viewers to share it.
+  2: Offers little entertainment value, giving viewers minimal reason to share it with others.
+
+C. TRENDINESS (Survey Mean: 3.43 | Brand Engagement Correlation: 0.306 Weak):
+- Interaction:
+  5: Effectively incorporates current social media trends in a way that encourages viewers to react, comment, or share their opinions.
+  4: Incorporates recognizable trends that encourage viewers to express their reactions.
+  3: Includes trending elements but does not effectively use them to encourage interaction.
+  2: Uses outdated or irrelevant trends that fail to encourage viewer reactions.
+- Participation:
+  5: Adapts popular trends into interactive activities that encourage viewers to join or create their own content.
+  4: Includes trending elements that provide opportunities for viewers to participate.
+  3: Follows current trends but provides limited opportunities for viewer participation.
+  2: Does not effectively incorporate trends that could motivate viewers to participate.
+- Sharing:
+  5: Uses relevant and popular trends that encourage viewers to share or repost the content with others.
+  4: Uses popular topics or formats that viewers may find worth sharing.
+  3: Uses familiar trends but does not create a strong reason for viewers to share the content.
+  2: Lacks relevant trending elements that could encourage viewers to share or repost it.
+
+D. RELATABLE CONTENT (Survey Mean: 3.31 | Brand Engagement Correlation: 0.554 Moderate):
+- Interaction:
+  5: Presents relatable situations and experiences that encourage viewers to comment, react, and share their personal opinions.
+  4: Presents familiar situations that encourage viewers to express their reactions or opinions.
+  3: Contains some relatable elements but does not strongly encourage viewers to interact.
+  2: Presents situations that are difficult for its target audience to relate to, resulting in little interaction.
+- Participation:
+  5: Features experiences that viewers can identify with, encouraging them to participate by sharing their own stories or experiences.
+  4: Includes relatable experiences that encourage viewers to respond or participate in its activities.
+  3: Presents familiar situations but provides limited motivation for viewers to participate or share their experiences.
+  2: Lacks relatable experiences that could encourage viewers to participate.
+- Sharing:
+  5: Reflects the interests and everyday experiences of its target audience, making viewers want to share it with friends or peers.
+  4: Contains situations that viewers may relate to and consider sharing with others.
+  3: Has some relatable content but does not create a strong connection that encourages sharing.
+  2: Does not reflect the interests or experiences of its target audience, giving them little reason to share it.
+
+Ground every score strictly in what is visible and audible in the video.`;
 
   const promptText = `Evaluate this short-form marketing Reel (${videoMetadata.fileName}).
 Target Persona Focus: ${context.targetPersona}
@@ -396,11 +484,12 @@ Campaign Objective: ${context.campaignObjective}
 ${context.brandContext ? `Brand / Product Context: ${context.brandContext}` : ''}
 
 Provide:
-- Scores (0 to 5 in 0.5 increments) with concrete observed video cues for all 4 Reels Marketing Content variables and all 3 Brand Engagement variables.
-- 3 to 5 specific Strengths and Weaknesses.
-- Prioritized Improvement Recommendations with timestamp hints.
-- Predicted Audience Response across all 4 core user groups: Business Owners, Gen Z Consumers, Social Media Content Creators, and Marketing Professionals.
-- Marketing Strategy Recommendations and Research Recommendations (A/B tests and KPIs).`;
+- Integer ratings (2, 3, 4, or 5) and concise evidence-based rationales for Interaction, Participation, and Sharing across each of the 4 content variables (Informational Content, Entertainment Content, Trendiness, Relatable Content), plus observed video cues.
+- Strengths identifying effective characteristics and engagement dimensions.
+- Areas for Improvement identifying the lowest-scoring characteristics and engagement dimensions.
+- Specific Development Recommendations for the content creator or business owner.
+- Predicted Audience Response across Business Owners, Gen Z Consumers, Social Media Content Creators, and Marketing Professionals.
+- Marketing Strategy and Research Recommendations.`;
 
   let uploadedFileName: string | undefined;
 
@@ -516,13 +605,24 @@ Provide:
       );
     }
 
+    type RawVariableMatrix = {
+      interaction: { score: number; rationale: string };
+      participation: { score: number; rationale: string };
+      sharing: { score: number; rationale: string };
+      observedCues: string[];
+    };
+
     let parsed: {
       executiveSummary: string;
-      reelsMarketingScores: ReelsMarketingScores;
-      brandEngagementScores: BrandEngagementScores;
+      variables: {
+        informational: RawVariableMatrix;
+        entertainment: RawVariableMatrix;
+        trendiness: RawVariableMatrix;
+        relatable: RawVariableMatrix;
+      };
       strengths: string[];
-      weaknesses: string[];
-      improvementRecommendations: ImprovementRecommendation[];
+      areasForImprovement: string[];
+      developmentRecommendations: DevelopmentRecommendation[];
       predictedAudienceResponse: AudienceSegmentPrediction[];
       marketingStrategyRecommendations: MarketingStrategyItem[];
       researchRecommendations: string[];
@@ -538,52 +638,43 @@ Provide:
       );
     }
 
-    const reelsMarketingScores: ReelsMarketingScores = {
-      relatedContent: {
-        score: clampScore(parsed.reelsMarketingScores?.relatedContent?.score),
-        rationale: parsed.reelsMarketingScores?.relatedContent?.rationale || '',
-        observedCues: parsed.reelsMarketingScores?.relatedContent?.observedCues || [],
-      },
-      entertainmentContent: {
-        score: clampScore(parsed.reelsMarketingScores?.entertainmentContent?.score),
-        rationale: parsed.reelsMarketingScores?.entertainmentContent?.rationale || '',
-        observedCues: parsed.reelsMarketingScores?.entertainmentContent?.observedCues || [],
-      },
-      informational: {
-        score: clampScore(parsed.reelsMarketingScores?.informational?.score),
-        rationale: parsed.reelsMarketingScores?.informational?.rationale || '',
-        observedCues: parsed.reelsMarketingScores?.informational?.observedCues || [],
-      },
-      trendiness: {
-        score: clampScore(parsed.reelsMarketingScores?.trendiness?.score),
-        rationale: parsed.reelsMarketingScores?.trendiness?.rationale || '',
-        observedCues: parsed.reelsMarketingScores?.trendiness?.observedCues || [],
-      },
+    const variables = {
+      informational: buildVariableAssessment({
+        key: 'informational',
+        interaction: parsed.variables?.informational?.interaction || { score: 2, rationale: '' },
+        participation: parsed.variables?.informational?.participation || { score: 2, rationale: '' },
+        sharing: parsed.variables?.informational?.sharing || { score: 2, rationale: '' },
+        observedCues: parsed.variables?.informational?.observedCues || [],
+      }),
+      entertainment: buildVariableAssessment({
+        key: 'entertainment',
+        interaction: parsed.variables?.entertainment?.interaction || { score: 2, rationale: '' },
+        participation: parsed.variables?.entertainment?.participation || { score: 2, rationale: '' },
+        sharing: parsed.variables?.entertainment?.sharing || { score: 2, rationale: '' },
+        observedCues: parsed.variables?.entertainment?.observedCues || [],
+      }),
+      trendiness: buildVariableAssessment({
+        key: 'trendiness',
+        interaction: parsed.variables?.trendiness?.interaction || { score: 2, rationale: '' },
+        participation: parsed.variables?.trendiness?.participation || { score: 2, rationale: '' },
+        sharing: parsed.variables?.trendiness?.sharing || { score: 2, rationale: '' },
+        observedCues: parsed.variables?.trendiness?.observedCues || [],
+      }),
+      relatable: buildVariableAssessment({
+        key: 'relatable',
+        interaction: parsed.variables?.relatable?.interaction || { score: 2, rationale: '' },
+        participation: parsed.variables?.relatable?.participation || { score: 2, rationale: '' },
+        sharing: parsed.variables?.relatable?.sharing || { score: 2, rationale: '' },
+        observedCues: parsed.variables?.relatable?.observedCues || [],
+      }),
     };
 
-    const brandEngagementScores: BrandEngagementScores = {
-      interaction: {
-        score: clampScore(parsed.brandEngagementScores?.interaction?.score),
-        rationale: parsed.brandEngagementScores?.interaction?.rationale || '',
-        observedCues: parsed.brandEngagementScores?.interaction?.observedCues || [],
-      },
-      sharing: {
-        score: clampScore(parsed.brandEngagementScores?.sharing?.score),
-        rationale: parsed.brandEngagementScores?.sharing?.rationale || '',
-        observedCues: parsed.brandEngagementScores?.sharing?.observedCues || [],
-      },
-      participation: {
-        score: clampScore(parsed.brandEngagementScores?.participation?.score),
-        rationale: parsed.brandEngagementScores?.participation?.rationale || '',
-        observedCues: parsed.brandEngagementScores?.participation?.observedCues || [],
-      },
-    };
-
-    const overallScore = computeOverallScore(reelsMarketingScores);
-    const brandEngagementSummary = computeEngagementSummary(brandEngagementScores);
+    const overallScore = computeOverallScore(variables);
     const scoreTier = getScoreTier(overallScore);
+    const brandEngagementSummary = computeEngagementSummary(variables);
 
     return {
+      schemaVersion: 2,
       id: crypto.randomUUID(),
       createdAt: new Date().toISOString(),
       modelUsed,
@@ -592,14 +683,16 @@ Provide:
       executiveSummary: parsed.executiveSummary || '',
       overallScore,
       scoreTier,
-      reelsMarketingScores,
-      brandEngagementScores,
+      variables,
       brandEngagementSummary,
       strengths: Array.isArray(parsed.strengths) ? parsed.strengths : [],
-      weaknesses: Array.isArray(parsed.weaknesses) ? parsed.weaknesses : [],
-      improvementRecommendations: (parsed.improvementRecommendations || []).map((rec) => ({
+      areasForImprovement: Array.isArray(parsed.areasForImprovement)
+        ? parsed.areasForImprovement
+        : [],
+      developmentRecommendations: (parsed.developmentRecommendations || []).map((rec) => ({
         priority: normalizePriority(rec.priority),
-        targetVariable: rec.targetVariable || 'Related Content',
+        targetVariable: rec.targetVariable || 'Informational Content',
+        targetDimension: normalizeDimension(rec.targetDimension),
         recommendation: rec.recommendation || '',
         expectedImpact: rec.expectedImpact || '',
         timestampHint: rec.timestampHint,
@@ -624,7 +717,7 @@ Provide:
       try {
         await ai.files.delete({ name: uploadedFileName });
       } catch {
-        // Ignore cleanup failures for ephemeral uploaded files
+        // Ignore cleanup failures
       }
     }
   }

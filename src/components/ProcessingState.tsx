@@ -8,8 +8,8 @@ interface ProcessingStateProps {
 const STEPS = [
   'Uploading video stream to evaluation server',
   'Inspecting visual frames, audio pacing, and on-screen cues via Gemini',
-  'Scoring 4 Reels Marketing Content & 3 Brand Engagement variables',
-  'Generating audience predictions & research recommendations',
+  'Scoring 4×3 Content & Engagement matrix (Interaction, Participation, Sharing)',
+  'Calculating 8.00–20.00 effectiveness score & development recommendations',
 ];
 
 export function ProcessingState({ fileName }: ProcessingStateProps) {

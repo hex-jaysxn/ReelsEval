@@ -11,7 +11,7 @@ interface HistoryViewProps {
   onGoToEvaluator: () => void;
 }
 
-type TierFilter = 'all' | 'high' | 'strong' | 'needs-work';
+type TierFilter = 'all' | 'very-effective' | 'effective' | 'moderate' | 'less-effective';
 
 export function HistoryView({
   history,
@@ -30,12 +30,14 @@ export function HistoryView({
         !q ||
         item.videoMetadata.fileName.toLowerCase().includes(q) ||
         item.context.targetPersona.toLowerCase().includes(q) ||
-        item.context.campaignObjective.toLowerCase().includes(q);
+        item.context.campaignObjective.toLowerCase().includes(q) ||
+        item.scoreTier.level.toLowerCase().includes(q);
 
       if (!matchesSearch) return false;
-      if (tierFilter === 'high') return item.overallScore >= 17;
-      if (tierFilter === 'strong') return item.overallScore >= 13 && item.overallScore < 17;
-      if (tierFilter === 'needs-work') return item.overallScore < 13;
+      if (tierFilter === 'very-effective') return item.overallScore >= 17;
+      if (tierFilter === 'effective') return item.overallScore >= 14 && item.overallScore < 17;
+      if (tierFilter === 'moderate') return item.overallScore >= 11 && item.overallScore < 14;
+      if (tierFilter === 'less-effective') return item.overallScore < 11;
       return true;
     });
   }, [history, searchQuery, tierFilter]);
@@ -61,7 +63,7 @@ export function HistoryView({
           <div>
             <h1 className="font-display text-xl font-bold text-slate-900">Evaluation History</h1>
             <p className="mt-1 text-sm text-slate-500">
-              Saved Reel evaluations stored locally in your browser for longitudinal benchmarking.
+              Saved Reel assessments scored on the 8.00–20.00 effectiveness rubric.
             </p>
           </div>
 
@@ -86,7 +88,7 @@ export function HistoryView({
               No Reels Evaluated Yet
             </h2>
             <p className="mt-1.5 text-sm text-slate-500 max-w-md mx-auto">
-              Upload a short-form marketing video in the Video Evaluator to generate your first 20-point Gemini evaluation and save it here.
+              Upload a short-form marketing video in the Video Evaluator to generate your first 4×3 rubric assessment and save it here.
             </p>
             <button
               type="button"
@@ -98,8 +100,8 @@ export function HistoryView({
           </div>
         ) : (
           <>
-            {/* Search & Tier Filters */}
-            <div className="mt-5 flex flex-col md:flex-row md:items-center justify-between gap-4">
+            {/* Search & Section V Tier Filters */}
+            <div className="mt-5 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
               <div className="relative flex-1 max-w-sm">
                 <Search
                   className="h-4 w-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none"
@@ -109,7 +111,7 @@ export function HistoryView({
                   type="search"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Search by file, audience, or goal..."
+                  placeholder="Search by file, audience, or level..."
                   aria-label="Search evaluation history"
                   className="w-full rounded-lg border border-slate-300 bg-white pl-10 pr-3.5 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-indigo-600 focus:outline-none focus:ring-2 focus:ring-indigo-600/20"
                 />
@@ -117,14 +119,15 @@ export function HistoryView({
 
               <div
                 role="group"
-                aria-label="Filter by score tier"
-                className="inline-flex items-center gap-1 p-1 bg-slate-100 rounded-lg self-start"
+                aria-label="Filter by effectiveness level"
+                className="inline-flex flex-wrap items-center gap-1 p-1 bg-slate-100 rounded-lg self-start"
               >
                 {[
                   { id: 'all', label: 'All' },
-                  { id: 'high', label: '17–20' },
-                  { id: 'strong', label: '13–16.5' },
-                  { id: 'needs-work', label: '0–12.5' },
+                  { id: 'very-effective', label: '17–20' },
+                  { id: 'effective', label: '14–16.99' },
+                  { id: 'moderate', label: '11–13.99' },
+                  { id: 'less-effective', label: '8–10.99' },
                 ].map((opt) => (
                   <button
                     key={opt.id}
@@ -150,7 +153,7 @@ export function HistoryView({
                     <th className="py-3 pr-4">Video</th>
                     <th className="py-3 px-4">Target Audience</th>
                     <th className="py-3 px-4 text-right">Overall Score</th>
-                    <th className="py-3 px-4 text-right">Engagement</th>
+                    <th className="py-3 px-4">Effectiveness Level</th>
                     <th className="py-3 px-4">Evaluated</th>
                     <th className="py-3 pl-4 text-right">Actions</th>
                   </tr>
@@ -178,11 +181,11 @@ export function HistoryView({
                           <p className="text-slate-700">{item.context.targetPersona}</p>
                           <p className="text-xs text-slate-400">{item.context.campaignObjective}</p>
                         </td>
-                        <td className="py-3.5 px-4 text-right font-mono font-semibold tabular-nums text-slate-900">
-                          {item.overallScore} / 20
+                        <td className="py-3.5 px-4 text-right font-mono font-semibold tabular-nums text-slate-900 whitespace-nowrap">
+                          {item.overallScore.toFixed(2)} / 20
                         </td>
-                        <td className="py-3.5 px-4 text-right font-mono tabular-nums text-slate-600">
-                          {item.brandEngagementSummary.totalOutOf15} / 15
+                        <td className="py-3.5 px-4 text-xs font-semibold text-slate-700 whitespace-nowrap">
+                          {item.scoreTier.level}
                         </td>
                         <td className="py-3.5 px-4 text-xs text-slate-500 tabular-nums whitespace-nowrap">
                           {new Date(item.createdAt).toLocaleDateString()}

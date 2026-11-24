@@ -1,0 +1,6 @@
+{
+  "name": "ReelsEvaluator",
+  "description": "AI-powered short-form Reels marketing video evaluation platform delivering 20-point scoring, brand engagement analysis, audience response predictions, and research recommendations using Google Gemini Free Tier.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

@@ -7,6 +7,7 @@ import {
   generateOpaqueToken,
   generatePkceChallenge,
   normalizeEmail,
+  normalizeEmailFrom,
 } from './authLogic.ts';
 import type { AppDatabase, OAuthProviderName } from './db.ts';
 
@@ -268,18 +269,27 @@ async function sendResendEmail(params: {
   notConfiguredMessage: string;
 }): Promise<void> {
   const apiKey = process.env.RESEND_API_KEY?.trim();
-  const from = process.env.EMAIL_FROM?.trim();
+  const rawFrom = process.env.EMAIL_FROM?.trim();
 
   if (
     !apiKey ||
-    !from ||
+    !rawFrom ||
     apiKey === 'MY_RESEND_API_KEY' ||
-    from === 'MY_EMAIL_FROM'
+    rawFrom === 'MY_EMAIL_FROM'
   ) {
     throw new OAuthConfigError(
       params.notConfiguredMessage,
       503,
       'EMAIL_NOT_CONFIGURED'
+    );
+  }
+
+  const from = normalizeEmailFrom(rawFrom);
+  if (!from) {
+    throw new OAuthConfigError(
+      'EMAIL_FROM is invalid. In Settings → Secrets, set EMAIL_FROM to `ReeView <onboarding@resend.dev>` (for testing) or `ReeView <noreply@yourdomain.com>` (verified domain), without surrounding quotes.',
+      503,
+      'EMAIL_INVALID_FROM'
     );
   }
 
@@ -319,6 +329,14 @@ async function sendResendEmail(params: {
         'Email service rejected RESEND_API_KEY (invalid API key). Update RESEND_API_KEY in Settings → Secrets.',
         502,
         'EMAIL_DELIVERY_FAILED'
+      );
+    }
+
+    if (/invalid.*from.*field/i.test(providerMessage)) {
+      throw new OAuthConfigError(
+        'EMAIL_FROM is invalid. In Settings → Secrets, set EMAIL_FROM to `ReeView <onboarding@resend.dev>` (for testing) or `ReeView <noreply@yourdomain.com>` (verified domain), without surrounding quotes.',
+        502,
+        'EMAIL_INVALID_FROM'
       );
     }
 

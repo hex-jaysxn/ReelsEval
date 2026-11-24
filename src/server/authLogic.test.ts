@@ -7,6 +7,7 @@ import {
   hashOtpCode,
   hashPassword,
   maskEmailAddress,
+  normalizeEmailFrom,
   verifyOtpCode,
   verifyPassword,
 } from './authLogic.ts';
@@ -201,3 +202,33 @@ test('OTP generation, salted verification, masking, and challenge attempt limits
   // Single-use: second attempt fails
   assert.equal(db.verifyEmailOtpChallenge(fresh.challengeId, fresh.otpCode).status, 'not_found');
 });
+
+test('normalizeEmailFrom cleans quotes, prefixes, and missing angle brackets while rejecting non-emails', () => {
+  assert.equal(normalizeEmailFrom('onboarding@resend.dev'), 'onboarding@resend.dev');
+  assert.equal(
+    normalizeEmailFrom('ReeView <onboarding@resend.dev>'),
+    'ReeView <onboarding@resend.dev>'
+  );
+  assert.equal(
+    normalizeEmailFrom('"ReeView <onboarding@resend.dev>"'),
+    'ReeView <onboarding@resend.dev>'
+  );
+  assert.equal(
+    normalizeEmailFrom('EMAIL_FROM="ReeView <onboarding@resend.dev>"'),
+    'ReeView <onboarding@resend.dev>'
+  );
+  assert.equal(
+    normalizeEmailFrom('ReeView onboarding@resend.dev'),
+    'ReeView <onboarding@resend.dev>'
+  );
+  assert.equal(
+    normalizeEmailFrom('ReeView <onboarding@resend.dev'),
+    'ReeView <onboarding@resend.dev>'
+  );
+  assert.equal(normalizeEmailFrom('<onboarding@resend.dev>'), 'onboarding@resend.dev');
+  assert.equal(normalizeEmailFrom('ReeView'), null);
+  assert.equal(normalizeEmailFrom('MY_EMAIL_FROM'), null);
+  assert.equal(normalizeEmailFrom('resend.dev'), null);
+  assert.equal(normalizeEmailFrom(''), null);
+});
+

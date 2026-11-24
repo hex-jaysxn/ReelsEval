@@ -194,3 +194,69 @@ export function escapeHtml(input: string): string {
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#39;');
 }
+
+const SIMPLE_EMAIL_FROM_REGEX = /^[^\s<>@"',;]+@[^\s<>@"',;]+\.[^\s<>@"',;]{2,}$/;
+const NAMED_EMAIL_FROM_REGEX = /^(.+?)\s*<([^\s<>@"',;]+@[^\s<>@"',;]+\.[^\s<>@"',;]{2,})>?$/;
+
+export function normalizeEmailFrom(raw?: string | null): string | null {
+  if (typeof raw !== 'string') return null;
+  let value = raw.replace(/[\r\n\t]+/g, ' ').trim();
+  if (!value || value === 'MY_EMAIL_FROM') return null;
+
+  if (/^EMAIL_FROM\s*=\s*/i.test(value)) {
+    value = value.replace(/^EMAIL_FROM\s*=\s*/i, '').trim();
+  }
+
+  while (
+    (value.startsWith('"') && value.endsWith('"')) ||
+    (value.startsWith("'") && value.endsWith("'")) ||
+    (value.startsWith('“') && value.endsWith('”')) ||
+    (value.startsWith('‘') && value.endsWith('’'))
+  ) {
+    value = value.slice(1, -1).trim();
+  }
+
+  if (/^EMAIL_FROM\s*=\s*/i.test(value)) {
+    value = value.replace(/^EMAIL_FROM\s*=\s*/i, '').trim();
+  }
+
+  if (!value || value === 'MY_EMAIL_FROM') return null;
+
+  if (value.startsWith('<') && value.endsWith('>')) {
+    const inner = value.slice(1, -1).trim().replace(/^["']+|["']+$/g, '');
+    if (SIMPLE_EMAIL_FROM_REGEX.test(inner)) {
+      return inner;
+    }
+  }
+
+  if (SIMPLE_EMAIL_FROM_REGEX.test(value)) {
+    return value;
+  }
+
+  const namedMatch = value.match(NAMED_EMAIL_FROM_REGEX);
+  if (namedMatch) {
+    const displayName = namedMatch[1]
+      .replace(/^["'“‘]+|["'”’]+$/g, '')
+      .trim();
+    const email = namedMatch[2].trim();
+    return displayName ? `${displayName} <${email}>` : email;
+  }
+
+  const tokens = value.split(/\s+/);
+  if (tokens.length >= 2) {
+    const candidateEmail = tokens[tokens.length - 1]
+      .replace(/^[<"']+|[>"',;]+$/g, '')
+      .trim();
+    if (SIMPLE_EMAIL_FROM_REGEX.test(candidateEmail)) {
+      const displayName = tokens
+        .slice(0, -1)
+        .join(' ')
+        .replace(/^["'“‘]+|["'”’]+$/g, '')
+        .trim();
+      return displayName ? `${displayName} <${candidateEmail}>` : candidateEmail;
+    }
+  }
+
+  return null;
+}
+

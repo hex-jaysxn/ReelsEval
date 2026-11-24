@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { computeMotionProfile } from './motionConfig';
+import { areMotionProfilesEqual, computeMotionProfile } from './motionConfig';
 
 test('computeMotionProfile disables parallax, 3D tilt, and blur when reducedMotion is enabled', () => {
   const profile = computeMotionProfile({
@@ -53,4 +53,25 @@ test('computeMotionProfile enables full layered choreography on desktop', () => 
   assert.equal(desktop.enable3DTilt, true);
   assert.equal(desktop.enableBlur, true);
   assert.equal(desktop.enableClipMask, true);
+});
+
+test('areMotionProfilesEqual ignores within-tier resizes and detects tier changes', () => {
+  const desktopWide = computeMotionProfile({
+    reducedMotion: false,
+    viewportWidth: 1440,
+    coarsePointer: false,
+  });
+  const desktopNarrow = computeMotionProfile({
+    reducedMotion: false,
+    viewportWidth: 1024,
+    coarsePointer: false,
+  });
+  const mobile = computeMotionProfile({
+    reducedMotion: false,
+    viewportWidth: 390,
+    coarsePointer: false,
+  });
+
+  assert.equal(areMotionProfilesEqual(desktopWide, desktopNarrow), true);
+  assert.equal(areMotionProfilesEqual(desktopWide, mobile), false);
 });

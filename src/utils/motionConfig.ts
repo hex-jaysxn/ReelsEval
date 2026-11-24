@@ -59,3 +59,16 @@ export function computeMotionProfile({
     scrollRevealAmount: 0.06,
   };
 }
+
+export function areMotionProfilesEqual(a: MotionProfile, b: MotionProfile): boolean {
+  return (
+    a.tier === b.tier &&
+    a.parallaxMultiplier === b.parallaxMultiplier &&
+    a.durationScale === b.durationScale &&
+    a.distanceScale === b.distanceScale &&
+    a.enable3DTilt === b.enable3DTilt &&
+    a.enableBlur === b.enableBlur &&
+    a.enableClipMask === b.enableClipMask &&
+    a.scrollRevealAmount === b.scrollRevealAmount
+  );
+}

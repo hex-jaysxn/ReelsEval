@@ -205,7 +205,7 @@ export function createAuthRouter(db: AppDatabase): express.Router {
         error: {
           code: 'EMAIL_NOT_CONFIGURED',
           message:
-            'Email verification requires RESEND_API_KEY and EMAIL_FROM to be configured in server environment secrets.',
+            'Email verification requires Gmail/SMTP (SMTP_USER & SMTP_PASS) or Brevo/Resend secrets to be configured.',
         },
       });
       return;
@@ -302,7 +302,7 @@ export function createAuthRouter(db: AppDatabase): express.Router {
         error: {
           code: 'EMAIL_NOT_CONFIGURED',
           message:
-            'Email OTP verification requires RESEND_API_KEY and EMAIL_FROM to be configured in server environment secrets.',
+            'Email OTP verification requires Gmail/SMTP (SMTP_USER & SMTP_PASS) or Brevo/Resend secrets to be configured.',
         },
       });
       return;
@@ -463,7 +463,7 @@ export function createAuthRouter(db: AppDatabase): express.Router {
         error: {
           code: 'EMAIL_NOT_CONFIGURED',
           message:
-            'Email OTP verification requires RESEND_API_KEY and EMAIL_FROM to be configured in server environment secrets.',
+            'Email OTP verification requires Gmail/SMTP (SMTP_USER & SMTP_PASS) or Brevo/Resend secrets to be configured.',
         },
       });
       return;
@@ -556,7 +556,7 @@ export function createAuthRouter(db: AppDatabase): express.Router {
         error: {
           code: 'EMAIL_NOT_CONFIGURED',
           message:
-            'Password reset email delivery is not configured yet. Set RESEND_API_KEY and EMAIL_FROM in server environment secrets to enable password reset emails.',
+            'Password reset email delivery is not configured yet. Set Gmail/SMTP (SMTP_USER & SMTP_PASS) or Brevo/Resend secrets.',
         },
       });
       return;

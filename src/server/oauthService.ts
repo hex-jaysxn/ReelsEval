@@ -1,5 +1,6 @@
 import type express from 'express';
 import { createRemoteJWKSet, jwtVerify } from 'jose';
+import nodemailer from 'nodemailer';
 import type { AuthProviderAvailability } from '../types/auth.ts';
 import {
   decideOAuthResolution,
@@ -8,6 +9,8 @@ import {
   generatePkceChallenge,
   normalizeEmail,
   normalizeEmailFrom,
+  parseSenderNameAndEmail,
+  resolveEmailTransportConfig,
 } from './authLogic.ts';
 import type { AppDatabase, OAuthProviderName } from './db.ts';
 
@@ -48,14 +51,7 @@ export function isGoogleOAuthConfigured(): boolean {
 }
 
 export function isPasswordResetEmailConfigured(): boolean {
-  const apiKey = process.env.RESEND_API_KEY?.trim();
-  const from = process.env.EMAIL_FROM?.trim();
-  return Boolean(
-    apiKey &&
-      from &&
-      apiKey !== 'MY_RESEND_API_KEY' &&
-      from !== 'MY_EMAIL_FROM'
-  );
+  return Boolean(resolveEmailTransportConfig(process.env));
 }
 
 export function getAuthProviderAvailability(
@@ -262,21 +258,14 @@ function completeOAuthIdentityResolution(params: {
   return { userId: targetUserId, mode: params.mode };
 }
 
-async function sendResendEmail(params: {
+async function sendTransactionalEmail(params: {
   toEmail: string;
   subject: string;
   html: string;
   notConfiguredMessage: string;
 }): Promise<void> {
-  const apiKey = process.env.RESEND_API_KEY?.trim();
-  const rawFrom = process.env.EMAIL_FROM?.trim();
-
-  if (
-    !apiKey ||
-    !rawFrom ||
-    apiKey === 'MY_RESEND_API_KEY' ||
-    rawFrom === 'MY_EMAIL_FROM'
-  ) {
+  const config = resolveEmailTransportConfig(process.env);
+  if (!config) {
     throw new OAuthConfigError(
       params.notConfiguredMessage,
       503,
@@ -284,10 +273,111 @@ async function sendResendEmail(params: {
     );
   }
 
-  const from = normalizeEmailFrom(rawFrom);
+  if (config.provider === 'smtp') {
+    const transporter = nodemailer.createTransport({
+      host: config.host,
+      port: config.port,
+      secure: config.secure,
+      auth: {
+        user: config.user,
+        pass: config.pass,
+      },
+      connectionTimeout: 15000,
+      greetingTimeout: 15000,
+      socketTimeout: 20000,
+    });
+
+    try {
+      await transporter.sendMail({
+        from: config.from,
+        to: params.toEmail,
+        subject: params.subject,
+        html: params.html,
+      });
+      return;
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err || '');
+      if (/535|EAUTH|Invalid login|Username and Password not accepted/i.test(msg)) {
+        throw new OAuthConfigError(
+          'SMTP authentication failed. Check SMTP_USER and SMTP_PASS in Settings → Secrets (for Gmail, use a 16-character Google App Password with 2-Step Verification enabled).',
+          502,
+          'EMAIL_DELIVERY_FAILED'
+        );
+      }
+      throw new OAuthConfigError(
+        msg ? `SMTP email delivery failed: ${msg}` : 'SMTP email delivery failed.',
+        502,
+        'EMAIL_DELIVERY_FAILED'
+      );
+    }
+  }
+
+  if (config.provider === 'brevo') {
+    const from = normalizeEmailFrom(config.rawFrom);
+    if (!from) {
+      throw new OAuthConfigError(
+        'EMAIL_FROM is invalid for Brevo. In Settings → Secrets, set EMAIL_FROM to your verified Brevo sender email (e.g. `ReeView <jaysonapoya06@gmail.com>`).',
+        503,
+        'EMAIL_INVALID_FROM'
+      );
+    }
+    const sender = parseSenderNameAndEmail(from);
+
+    let res: Response;
+    try {
+      res = await fetch('https://api.brevo.com/v3/smtp/email', {
+        method: 'POST',
+        headers: {
+          'api-key': config.apiKey,
+          'Content-Type': 'application/json',
+          Accept: 'application/json',
+        },
+        body: JSON.stringify({
+          sender: sender.name ? { name: sender.name, email: sender.email } : { email: sender.email },
+          to: [{ email: params.toEmail }],
+          subject: params.subject,
+          htmlContent: params.html,
+        }),
+      });
+    } catch {
+      throw new OAuthConfigError(
+        'Could not reach Brevo email delivery service. Please try again.',
+        502,
+        'EMAIL_DELIVERY_FAILED'
+      );
+    }
+
+    if (!res.ok) {
+      const errorBody = (await res.json().catch(() => null)) as {
+        message?: string;
+        code?: string;
+      } | null;
+      const providerMessage =
+        typeof errorBody?.message === 'string' ? errorBody.message.trim() : '';
+
+      if (res.status === 401) {
+        throw new OAuthConfigError(
+          'Brevo rejected BREVO_API_KEY (invalid API key). Update BREVO_API_KEY in Settings → Secrets.',
+          502,
+          'EMAIL_DELIVERY_FAILED'
+        );
+      }
+
+      throw new OAuthConfigError(
+        providerMessage
+          ? `Email delivery failed: ${providerMessage}`
+          : 'Failed to send email via Brevo. Check BREVO_API_KEY and EMAIL_FROM.',
+        502,
+        'EMAIL_DELIVERY_FAILED'
+      );
+    }
+    return;
+  }
+
+  const from = normalizeEmailFrom(config.rawFrom);
   if (!from) {
     throw new OAuthConfigError(
-      'EMAIL_FROM is invalid. In Settings → Secrets, set EMAIL_FROM to `ReeView <onboarding@resend.dev>` (for testing) or `ReeView <noreply@yourdomain.com>` (verified domain), without surrounding quotes.',
+      'EMAIL_FROM is invalid. In Settings → Secrets, set EMAIL_FROM to `Name <email@example.com>` without surrounding quotes, or switch to Gmail/SMTP (`SMTP_USER` + `SMTP_PASS`).',
       503,
       'EMAIL_INVALID_FROM'
     );
@@ -298,7 +388,7 @@ async function sendResendEmail(params: {
     res = await fetch('https://api.resend.com/emails', {
       method: 'POST',
       headers: {
-        Authorization: `Bearer ${apiKey}`,
+        Authorization: `Bearer ${config.apiKey}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
@@ -334,7 +424,7 @@ async function sendResendEmail(params: {
 
     if (/invalid.*from.*field/i.test(providerMessage)) {
       throw new OAuthConfigError(
-        'EMAIL_FROM is invalid. In Settings → Secrets, set EMAIL_FROM to `ReeView <onboarding@resend.dev>` (for testing) or `ReeView <noreply@yourdomain.com>` (verified domain), without surrounding quotes.',
+        'EMAIL_FROM is invalid. Set EMAIL_FROM to `Name <email@example.com>` without quotes, or switch to Gmail SMTP (`SMTP_USER` + `SMTP_PASS`).',
         502,
         'EMAIL_INVALID_FROM'
       );
@@ -343,7 +433,7 @@ async function sendResendEmail(params: {
     throw new OAuthConfigError(
       providerMessage
         ? `Email delivery failed: ${providerMessage}`
-        : 'Failed to send email. Check RESEND_API_KEY and EMAIL_FROM configuration.',
+        : 'Failed to send email. Check email sender configuration in Settings → Secrets.',
       502,
       'EMAIL_DELIVERY_FAILED'
     );
@@ -354,12 +444,12 @@ export async function sendPasswordResetEmail(params: {
   toEmail: string;
   resetUrl: string;
 }): Promise<void> {
-  await sendResendEmail({
+  await sendTransactionalEmail({
     toEmail: params.toEmail,
     subject: 'Reset your ReeView password',
     html: `<p>Click the link below to reset your ReeView password. This link expires in 30 minutes.</p><p><a href="${params.resetUrl}">${params.resetUrl}</a></p>`,
     notConfiguredMessage:
-      'Password reset emails require RESEND_API_KEY and EMAIL_FROM to be configured in server environment secrets.',
+      'Password reset emails require Gmail/SMTP (SMTP_USER & SMTP_PASS) or Brevo/Resend API secrets to be configured.',
   });
 }
 
@@ -378,7 +468,7 @@ export async function sendEmailOtpEmail(params: {
       ? 'complete creating your ReeView account'
       : 'sign in to your ReeView workspace';
 
-  await sendResendEmail({
+  await sendTransactionalEmail({
     toEmail: params.toEmail,
     subject:
       params.purpose === 'register'
@@ -391,7 +481,7 @@ export async function sendEmailOtpEmail(params: {
       <p style="margin: 0; font-size: 12px; color: #475569;">This code expires in ${expiresMinutes} minutes. If you did not request this code, you can safely ignore this email.</p>
     </div>`,
     notConfiguredMessage:
-      'Email verification codes require RESEND_API_KEY and EMAIL_FROM to be configured in server environment secrets.',
+      'Email verification codes require Gmail/SMTP (SMTP_USER & SMTP_PASS) or Brevo/Resend API secrets to be configured.',
   });
 }
 

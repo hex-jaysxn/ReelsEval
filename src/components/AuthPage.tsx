@@ -710,7 +710,9 @@ export function AuthPage({
               )}
               {!providerAvailability.emailOtpConfigured && (
                 <p>
-                  Email OTP verification requires <code className="font-mono text-indigo-300">RESEND_API_KEY</code> and{' '}
+                  Email OTP verification requires Gmail/SMTP (<code className="font-mono text-indigo-300">SMTP_USER</code> +{' '}
+                  <code className="font-mono text-indigo-300">SMTP_PASS</code>) or{' '}
+                  <code className="font-mono text-indigo-300">BREVO_API_KEY</code> +{' '}
                   <code className="font-mono text-indigo-300">EMAIL_FROM</code>.
                 </p>
               )}

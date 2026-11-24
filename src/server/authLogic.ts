@@ -260,3 +260,136 @@ export function normalizeEmailFrom(raw?: string | null): string | null {
   return null;
 }
 
+export function cleanSecretValue(raw?: string | null, placeholder?: string): string {
+  if (typeof raw !== 'string') return '';
+  let value = raw.trim();
+  while (
+    (value.startsWith('"') && value.endsWith('"')) ||
+    (value.startsWith("'") && value.endsWith("'"))
+  ) {
+    value = value.slice(1, -1).trim();
+  }
+  if (!value || (placeholder && value === placeholder)) return '';
+  return value;
+}
+
+export function parseSenderNameAndEmail(fromAddress: string): {
+  name?: string;
+  email: string;
+} {
+  const namedMatch = fromAddress.match(NAMED_EMAIL_FROM_REGEX);
+  if (namedMatch) {
+    const name = namedMatch[1].trim();
+    const email = namedMatch[2].trim();
+    return name ? { name, email } : { email };
+  }
+  return { email: fromAddress.trim() };
+}
+
+export type ResolvedEmailTransport =
+  | {
+      provider: 'smtp';
+      host: string;
+      port: number;
+      secure: boolean;
+      user: string;
+      pass: string;
+      from: string;
+    }
+  | {
+      provider: 'brevo';
+      apiKey: string;
+      rawFrom: string;
+    }
+  | {
+      provider: 'resend';
+      apiKey: string;
+      rawFrom: string;
+    };
+
+export function inferSmtpHostFromEmail(email: string): string | null {
+  const normalized = normalizeEmail(email);
+  if (/@(gmail|googlemail)\.com$/i.test(normalized)) {
+    return 'smtp.gmail.com';
+  }
+  if (/@(outlook|hotmail|live|msn)\.com$/i.test(normalized)) {
+    return 'smtp-mail.outlook.com';
+  }
+  if (/@yahoo\.com$/i.test(normalized)) {
+    return 'smtp.mail.yahoo.com';
+  }
+  return null;
+}
+
+export function resolveEmailTransportConfig(
+  env: Record<string, string | undefined>
+): ResolvedEmailTransport | null {
+  const smtpUser = cleanSecretValue(env.SMTP_USER, 'MY_SMTP_USER');
+  const rawSmtpPass = cleanSecretValue(env.SMTP_PASS, 'MY_SMTP_PASS');
+  const explicitSmtpHost = cleanSecretValue(env.SMTP_HOST, 'MY_SMTP_HOST');
+
+  if (smtpUser && rawSmtpPass) {
+    const host = explicitSmtpHost || inferSmtpHostFromEmail(smtpUser);
+    if (host) {
+      const parsedPort = Number(cleanSecretValue(env.SMTP_PORT));
+      const port =
+        Number.isInteger(parsedPort) && parsedPort > 0 && parsedPort <= 65535
+          ? parsedPort
+          : host === 'smtp.gmail.com'
+            ? 465
+            : 587;
+      const secureEnv = cleanSecretValue(env.SMTP_SECURE).toLowerCase();
+      const secure =
+        secureEnv === 'true' ? true : secureEnv === 'false' ? false : port === 465;
+
+      // Google App Passwords are displayed in 4-char space-separated groups
+      const pass =
+        host === 'smtp.gmail.com' && /^[a-zA-Z0-9]{4}(\s+[a-zA-Z0-9]{4}){3}$/.test(rawSmtpPass)
+          ? rawSmtpPass.replace(/\s+/g, '')
+          : rawSmtpPass;
+
+      const normalizedFrom = normalizeEmailFrom(env.EMAIL_FROM);
+      const isResendSandbox = Boolean(normalizedFrom && /@resend\.dev>?$/i.test(normalizedFrom));
+      const fallbackFrom = isValidEmail(smtpUser) ? `ReeView <${smtpUser}>` : null;
+      const from =
+        normalizedFrom && !isResendSandbox
+          ? normalizedFrom
+          : fallbackFrom || normalizedFrom || '';
+
+      if (from) {
+        return {
+          provider: 'smtp',
+          host,
+          port,
+          secure,
+          user: smtpUser,
+          pass,
+          from,
+        };
+      }
+    }
+  }
+
+  const brevoKey = cleanSecretValue(env.BREVO_API_KEY, 'MY_BREVO_API_KEY');
+  const rawFrom = cleanSecretValue(env.EMAIL_FROM, 'MY_EMAIL_FROM');
+  if (brevoKey && rawFrom) {
+    return {
+      provider: 'brevo',
+      apiKey: brevoKey,
+      rawFrom,
+    };
+  }
+
+  const resendKey = cleanSecretValue(env.RESEND_API_KEY, 'MY_RESEND_API_KEY');
+  if (resendKey && rawFrom) {
+    return {
+      provider: 'resend',
+      apiKey: resendKey,
+      rawFrom,
+    };
+  }
+
+  return null;
+}
+
+

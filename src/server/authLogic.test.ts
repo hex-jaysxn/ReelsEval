@@ -8,6 +8,8 @@ import {
   hashPassword,
   maskEmailAddress,
   normalizeEmailFrom,
+  parseSenderNameAndEmail,
+  resolveEmailTransportConfig,
   verifyOtpCode,
   verifyPassword,
 } from './authLogic.ts';
@@ -231,4 +233,64 @@ test('normalizeEmailFrom cleans quotes, prefixes, and missing angle brackets whi
   assert.equal(normalizeEmailFrom('resend.dev'), null);
   assert.equal(normalizeEmailFrom(''), null);
 });
+
+test('resolveEmailTransportConfig prioritizes Gmail/SMTP and Brevo cleanly over Resend', () => {
+  // Gmail SMTP auto-detects host/port, strips App Password spaces, and ignores stale @resend.dev EMAIL_FROM
+  const gmail = resolveEmailTransportConfig({
+    SMTP_USER: 'jaysonapoya06@gmail.com',
+    SMTP_PASS: 'abcd efgh ijkl mnop',
+    EMAIL_FROM: 'ReeView <onboarding@resend.dev>',
+    RESEND_API_KEY: 're_old_key',
+  });
+  assert.deepEqual(gmail, {
+    provider: 'smtp',
+    host: 'smtp.gmail.com',
+    port: 465,
+    secure: true,
+    user: 'jaysonapoya06@gmail.com',
+    pass: 'abcdefghijklmnop',
+    from: 'ReeView <jaysonapoya06@gmail.com>',
+  });
+
+  // Explicit custom SMTP
+  const customSmtp = resolveEmailTransportConfig({
+    SMTP_HOST: 'smtp-relay.brevo.com',
+    SMTP_PORT: '587',
+    SMTP_USER: 'login@example.com',
+    SMTP_PASS: 'secret-smtp-pass',
+    EMAIL_FROM: 'ReeView <noreply@example.com>',
+  });
+  assert.deepEqual(customSmtp, {
+    provider: 'smtp',
+    host: 'smtp-relay.brevo.com',
+    port: 587,
+    secure: false,
+    user: 'login@example.com',
+    pass: 'secret-smtp-pass',
+    from: 'ReeView <noreply@example.com>',
+  });
+
+  // Brevo HTTP API takes priority over Resend
+  const brevo = resolveEmailTransportConfig({
+    BREVO_API_KEY: 'xkeysib-123',
+    RESEND_API_KEY: 're_123',
+    EMAIL_FROM: 'ReeView <jaysonapoya06@gmail.com>',
+  });
+  assert.equal(brevo?.provider, 'brevo');
+  assert.deepEqual(parseSenderNameAndEmail('ReeView <jaysonapoya06@gmail.com>'), {
+    name: 'ReeView',
+    email: 'jaysonapoya06@gmail.com',
+  });
+
+  // Resend fallback still works when neither SMTP nor Brevo is set
+  const resend = resolveEmailTransportConfig({
+    RESEND_API_KEY: 're_123',
+    EMAIL_FROM: 'ReeView <noreply@example.com>',
+  });
+  assert.equal(resend?.provider, 'resend');
+
+  // Empty/placeholder env returns null
+  assert.equal(resolveEmailTransportConfig({}), null);
+});
+
 

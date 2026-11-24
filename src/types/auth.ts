@@ -20,6 +20,7 @@ export interface AuthUser {
 
 export interface AuthProviderAvailability {
   googleConfigured: boolean;
+  emailOtpConfigured: boolean;
   passwordResetEmailConfigured: boolean;
   callbackUrls: {
     google: string;

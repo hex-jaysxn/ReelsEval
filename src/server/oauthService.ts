@@ -3,6 +3,7 @@ import { createRemoteJWKSet, jwtVerify } from 'jose';
 import type { AuthProviderAvailability } from '../types/auth.ts';
 import {
   decideOAuthResolution,
+  escapeHtml,
   generateOpaqueToken,
   generatePkceChallenge,
   normalizeEmail,
@@ -46,8 +47,13 @@ export function isGoogleOAuthConfigured(): boolean {
 }
 
 export function isPasswordResetEmailConfigured(): boolean {
+  const apiKey = process.env.RESEND_API_KEY?.trim();
+  const from = process.env.EMAIL_FROM?.trim();
   return Boolean(
-    process.env.RESEND_API_KEY?.trim() && process.env.EMAIL_FROM?.trim()
+    apiKey &&
+      from &&
+      apiKey !== 'MY_RESEND_API_KEY' &&
+      from !== 'MY_EMAIL_FROM'
   );
 }
 
@@ -55,9 +61,11 @@ export function getAuthProviderAvailability(
   req: express.Request
 ): AuthProviderAvailability {
   const baseUrl = getAppBaseUrl(req);
+  const emailConfigured = isPasswordResetEmailConfigured();
   return {
     googleConfigured: isGoogleOAuthConfigured(),
-    passwordResetEmailConfigured: isPasswordResetEmailConfigured(),
+    emailOtpConfigured: emailConfigured,
+    passwordResetEmailConfigured: emailConfigured,
     callbackUrls: {
       google: `${baseUrl}/api/auth/google/callback`,
     },
@@ -253,42 +261,120 @@ function completeOAuthIdentityResolution(params: {
   return { userId: targetUserId, mode: params.mode };
 }
 
-export async function sendPasswordResetEmail(params: {
+async function sendResendEmail(params: {
   toEmail: string;
-  resetUrl: string;
+  subject: string;
+  html: string;
+  notConfiguredMessage: string;
 }): Promise<void> {
   const apiKey = process.env.RESEND_API_KEY?.trim();
   const from = process.env.EMAIL_FROM?.trim();
 
-  if (!apiKey || !from) {
+  if (
+    !apiKey ||
+    !from ||
+    apiKey === 'MY_RESEND_API_KEY' ||
+    from === 'MY_EMAIL_FROM'
+  ) {
     throw new OAuthConfigError(
-      'Password reset emails require RESEND_API_KEY and EMAIL_FROM to be configured in server environment secrets.',
+      params.notConfiguredMessage,
       503,
       'EMAIL_NOT_CONFIGURED'
     );
   }
 
-  const res = await fetch('https://api.resend.com/emails', {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      from,
-      to: [params.toEmail],
-      subject: 'Reset your ReeView password',
-      html: `<p>Click the link below to reset your ReeView password. This link expires in 30 minutes.</p><p><a href="${params.resetUrl}">${params.resetUrl}</a></p>`,
-    }),
-  });
-
-  if (!res.ok) {
+  let res: Response;
+  try {
+    res = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        from,
+        to: [params.toEmail],
+        subject: params.subject,
+        html: params.html,
+      }),
+    });
+  } catch {
     throw new OAuthConfigError(
-      'Failed to send password reset email. Check RESEND_API_KEY and EMAIL_FROM configuration.',
+      'Could not reach the email delivery service (Resend). Please try again.',
       502,
       'EMAIL_DELIVERY_FAILED'
     );
   }
+
+  if (!res.ok) {
+    const errorBody = (await res.json().catch(() => null)) as {
+      message?: string;
+      name?: string;
+    } | null;
+    const providerMessage =
+      typeof errorBody?.message === 'string' ? errorBody.message.trim() : '';
+
+    if (res.status === 401 || /api key is invalid/i.test(providerMessage)) {
+      throw new OAuthConfigError(
+        'Email service rejected RESEND_API_KEY (invalid API key). Update RESEND_API_KEY in Settings → Secrets.',
+        502,
+        'EMAIL_DELIVERY_FAILED'
+      );
+    }
+
+    throw new OAuthConfigError(
+      providerMessage
+        ? `Email delivery failed: ${providerMessage}`
+        : 'Failed to send email. Check RESEND_API_KEY and EMAIL_FROM configuration.',
+      502,
+      'EMAIL_DELIVERY_FAILED'
+    );
+  }
+}
+
+export async function sendPasswordResetEmail(params: {
+  toEmail: string;
+  resetUrl: string;
+}): Promise<void> {
+  await sendResendEmail({
+    toEmail: params.toEmail,
+    subject: 'Reset your ReeView password',
+    html: `<p>Click the link below to reset your ReeView password. This link expires in 30 minutes.</p><p><a href="${params.resetUrl}">${params.resetUrl}</a></p>`,
+    notConfiguredMessage:
+      'Password reset emails require RESEND_API_KEY and EMAIL_FROM to be configured in server environment secrets.',
+  });
+}
+
+export async function sendEmailOtpEmail(params: {
+  toEmail: string;
+  recipientName?: string | null;
+  otpCode: string;
+  purpose: 'login' | 'register';
+  expiresMinutes?: number;
+}): Promise<void> {
+  const expiresMinutes = params.expiresMinutes ?? 10;
+  const safeName = escapeHtml((params.recipientName || '').trim() || 'there');
+  const safeCode = escapeHtml(params.otpCode);
+  const actionLabel =
+    params.purpose === 'register'
+      ? 'complete creating your ReeView account'
+      : 'sign in to your ReeView workspace';
+
+  await sendResendEmail({
+    toEmail: params.toEmail,
+    subject:
+      params.purpose === 'register'
+        ? 'Verify your email for ReeView'
+        : 'Your ReeView sign-in verification code',
+    html: `<div style="font-family: system-ui, -apple-system, sans-serif; max-width: 480px; margin: 0 auto; padding: 24px; color: #0f172a;">
+      <h2 style="margin: 0 0 12px; font-size: 20px;">ReeView Verification Code</h2>
+      <p style="margin: 0 0 16px; font-size: 14px; line-height: 1.5;">Hi ${safeName}, enter the 6-digit code below to ${actionLabel}:</p>
+      <div style="background: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 10px; padding: 16px; text-align: center; font-family: monospace; font-size: 28px; font-weight: 700; letter-spacing: 6px; color: #0f172a; margin-bottom: 16px;">${safeCode}</div>
+      <p style="margin: 0; font-size: 12px; color: #475569;">This code expires in ${expiresMinutes} minutes. If you did not request this code, you can safely ignore this email.</p>
+    </div>`,
+    notConfiguredMessage:
+      'Email verification codes require RESEND_API_KEY and EMAIL_FROM to be configured in server environment secrets.',
+  });
 }
 
 export function renderOAuthPopupHtml(params: {

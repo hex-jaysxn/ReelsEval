@@ -5,6 +5,7 @@ import {
   canDisconnectProvider,
   hashPassword,
   isValidEmail,
+  maskEmailAddress,
   normalizeEmail,
   validatePasswordStrength,
   verifyPassword,
@@ -18,6 +19,7 @@ import {
   handleGoogleCallback,
   isPasswordResetEmailConfigured,
   renderOAuthPopupHtml,
+  sendEmailOtpEmail,
   sendPasswordResetEmail,
 } from './oauthService.ts';
 
@@ -198,17 +200,59 @@ export function createAuthRouter(db: AppDatabase): express.Router {
       return;
     }
 
+    if (!isPasswordResetEmailConfigured()) {
+      res.status(503).json({
+        error: {
+          code: 'EMAIL_NOT_CONFIGURED',
+          message:
+            'Email verification requires RESEND_API_KEY and EMAIL_FROM to be configured in server environment secrets.',
+        },
+      });
+      return;
+    }
+
     const passwordHash = await hashPassword(password);
-    const created = db.createUser({
+    const challenge = db.createEmailOtpChallenge({
+      purpose: 'register',
+      userId: null,
       email,
-      emailVerified: false,
-      name,
-      passwordHash,
+      pendingName: name,
+      pendingPasswordHash: passwordHash,
     });
 
-    const token = db.createSession(created.id);
-    setSessionCookie(req, res, token);
-    res.status(201).json({ user: db.getAuthUserProfile(created.id), sessionToken: token });
+    try {
+      await sendEmailOtpEmail({
+        toEmail: email,
+        recipientName: name,
+        otpCode: challenge.otpCode,
+        purpose: 'register',
+      });
+    } catch (err) {
+      db.deleteEmailOtpChallenge(challenge.challengeId);
+      if (err instanceof OAuthConfigError) {
+        res.status(err.statusCode).json({ error: { code: err.code, message: err.message } });
+        return;
+      }
+      res.status(500).json({
+        error: {
+          code: 'EMAIL_DELIVERY_FAILED',
+          message:
+            err instanceof Error
+              ? err.message
+              : 'Unexpected error while sending verification email.',
+        },
+      });
+      return;
+    }
+
+    res.json({
+      otpRequired: true,
+      purpose: 'register',
+      challengeId: challenge.challengeId,
+      maskedEmail: maskEmailAddress(email),
+      expiresInSeconds: 600,
+      resendCooldownSeconds: 30,
+    });
   });
 
   router.post('/login', verifySameOriginMutation, async (req, res) => {
@@ -253,9 +297,242 @@ export function createAuthRouter(db: AppDatabase): express.Router {
       return;
     }
 
+    if (!isPasswordResetEmailConfigured()) {
+      res.status(503).json({
+        error: {
+          code: 'EMAIL_NOT_CONFIGURED',
+          message:
+            'Email OTP verification requires RESEND_API_KEY and EMAIL_FROM to be configured in server environment secrets.',
+        },
+      });
+      return;
+    }
+
+    const challenge = db.createEmailOtpChallenge({
+      purpose: 'login',
+      userId: userRow.id,
+      email: userRow.email,
+    });
+
+    try {
+      await sendEmailOtpEmail({
+        toEmail: userRow.email,
+        recipientName: userRow.name,
+        otpCode: challenge.otpCode,
+        purpose: 'login',
+      });
+    } catch (err) {
+      db.deleteEmailOtpChallenge(challenge.challengeId);
+      if (err instanceof OAuthConfigError) {
+        res.status(err.statusCode).json({ error: { code: err.code, message: err.message } });
+        return;
+      }
+      res.status(500).json({
+        error: {
+          code: 'EMAIL_DELIVERY_FAILED',
+          message:
+            err instanceof Error
+              ? err.message
+              : 'Unexpected error while sending verification email.',
+        },
+      });
+      return;
+    }
+
+    res.json({
+      otpRequired: true,
+      purpose: 'login',
+      challengeId: challenge.challengeId,
+      maskedEmail: maskEmailAddress(userRow.email),
+      expiresInSeconds: 600,
+      resendCooldownSeconds: 30,
+    });
+  });
+
+  router.post('/otp/verify', verifySameOriginMutation, (req, res) => {
+    const challengeId =
+      typeof req.body?.challengeId === 'string' ? req.body.challengeId.trim() : '';
+    const code = typeof req.body?.code === 'string' ? req.body.code.trim() : '';
+
+    if (!challengeId || !/^\d{6}$/.test(code)) {
+      res.status(400).json({
+        error: {
+          code: 'INVALID_OTP',
+          message: 'Please enter the 6-digit verification code sent to your email.',
+        },
+      });
+      return;
+    }
+
+    const result = db.verifyEmailOtpChallenge(challengeId, code);
+    if (result.status === 'not_found') {
+      res.status(400).json({
+        error: {
+          code: 'INVALID_OTP',
+          message: 'Verification session not found. Please request a new code.',
+        },
+      });
+      return;
+    }
+    if (result.status === 'expired') {
+      res.status(400).json({
+        error: {
+          code: 'OTP_EXPIRED',
+          message: 'This verification code has expired. Please sign in again to get a new code.',
+        },
+      });
+      return;
+    }
+    if (result.status === 'max_attempts') {
+      res.status(429).json({
+        error: {
+          code: 'OTP_MAX_ATTEMPTS',
+          message: 'Too many incorrect attempts. Please request a new verification code.',
+        },
+      });
+      return;
+    }
+    if (result.status === 'invalid') {
+      res.status(401).json({
+        error: {
+          code: 'INVALID_OTP',
+          message: `Incorrect verification code. ${result.attemptsRemaining} attempt${result.attemptsRemaining === 1 ? '' : 's'} remaining.`,
+        },
+      });
+      return;
+    }
+
+    const verifiedChallenge = result.challenge;
+
+    if (verifiedChallenge.purpose === 'register') {
+      const existing = db.getUserByEmail(verifiedChallenge.email);
+      if (existing) {
+        res.status(409).json({
+          error: {
+            code: 'EMAIL_EXISTS',
+            message: 'An account with this email already exists. Please sign in instead.',
+          },
+        });
+        return;
+      }
+
+      const created = db.createUser({
+        email: verifiedChallenge.email,
+        emailVerified: true,
+        name: verifiedChallenge.pending_name || 'ReeView User',
+        passwordHash: verifiedChallenge.pending_password_hash,
+      });
+
+      const token = db.createSession(created.id);
+      setSessionCookie(req, res, token);
+      res.status(201).json({ user: db.getAuthUserProfile(created.id), sessionToken: token });
+      return;
+    }
+
+    const userRow = verifiedChallenge.user_id
+      ? db.getUserById(verifiedChallenge.user_id)
+      : null;
+    if (!userRow) {
+      res.status(404).json({
+        error: { code: 'NOT_FOUND', message: 'Account not found.' },
+      });
+      return;
+    }
+
+    if (!userRow.email_verified) {
+      db.updateUserProfile(userRow.id, { emailVerified: true });
+    }
+
     const token = db.createSession(userRow.id);
     setSessionCookie(req, res, token);
     res.json({ user: db.getAuthUserProfile(userRow.id), sessionToken: token });
+  });
+
+  router.post('/otp/resend', verifySameOriginMutation, async (req, res) => {
+    const challengeId =
+      typeof req.body?.challengeId === 'string' ? req.body.challengeId.trim() : '';
+    if (!challengeId) {
+      res.status(400).json({
+        error: { code: 'INVALID_OTP', message: 'Verification session is missing.' },
+      });
+      return;
+    }
+
+    if (!isPasswordResetEmailConfigured()) {
+      res.status(503).json({
+        error: {
+          code: 'EMAIL_NOT_CONFIGURED',
+          message:
+            'Email OTP verification requires RESEND_API_KEY and EMAIL_FROM to be configured in server environment secrets.',
+        },
+      });
+      return;
+    }
+
+    const regen = db.regenerateEmailOtpChallenge(challengeId, 30);
+    if (regen.status === 'not_found') {
+      res.status(400).json({
+        error: {
+          code: 'INVALID_OTP',
+          message: 'Verification session not found. Please start sign-in again.',
+        },
+      });
+      return;
+    }
+    if (regen.status === 'expired') {
+      res.status(400).json({
+        error: {
+          code: 'OTP_EXPIRED',
+          message: 'Verification session expired. Please start sign-in again.',
+        },
+      });
+      return;
+    }
+    if (regen.status === 'cooldown') {
+      res.status(429).json({
+        error: {
+          code: 'OTP_COOLDOWN',
+          message: `Please wait ${regen.retryAfterSeconds}s before requesting another verification code.`,
+          retryAfterSeconds: regen.retryAfterSeconds,
+        },
+      });
+      return;
+    }
+
+    const userName =
+      regen.challenge.pending_name ||
+      (regen.challenge.user_id ? db.getUserById(regen.challenge.user_id)?.name : null);
+
+    try {
+      await sendEmailOtpEmail({
+        toEmail: regen.challenge.email,
+        recipientName: userName,
+        otpCode: regen.otpCode,
+        purpose: regen.challenge.purpose,
+      });
+    } catch (err) {
+      if (err instanceof OAuthConfigError) {
+        res.status(err.statusCode).json({ error: { code: err.code, message: err.message } });
+        return;
+      }
+      res.status(500).json({
+        error: {
+          code: 'EMAIL_DELIVERY_FAILED',
+          message:
+            err instanceof Error
+              ? err.message
+              : 'Unexpected error while resending verification email.',
+        },
+      });
+      return;
+    }
+
+    res.json({
+      ok: true,
+      maskedEmail: maskEmailAddress(regen.challenge.email),
+      expiresInSeconds: 600,
+      resendCooldownSeconds: 30,
+    });
   });
 
   router.post('/logout', verifySameOriginMutation, (req, res) => {
@@ -296,7 +573,16 @@ export function createAuthRouter(db: AppDatabase): express.Router {
           res.status(err.statusCode).json({ error: { code: err.code, message: err.message } });
           return;
         }
-        throw err;
+        res.status(500).json({
+          error: {
+            code: 'EMAIL_DELIVERY_FAILED',
+            message:
+              err instanceof Error
+                ? err.message
+                : 'Unexpected error while sending password reset email.',
+          },
+        });
+        return;
       }
     }
 

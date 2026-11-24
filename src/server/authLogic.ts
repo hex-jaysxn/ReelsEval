@@ -149,3 +149,48 @@ export function decideOAuthResolution(params: {
 
   return { action: 'create_user' };
 }
+
+export function generateNumericOtp(digits = 6): string {
+  const max = 10 ** digits;
+  return crypto.randomInt(0, max).toString().padStart(digits, '0');
+}
+
+export function hashOtpCode(code: string, salt: string): string {
+  return crypto.createHmac('sha256', salt).update(code.trim()).digest('hex');
+}
+
+export function verifyOtpCode(code: string, salt: string, expectedHash: string): boolean {
+  const normalized = (code || '').trim();
+  if (!/^\d{6}$/.test(normalized) || !salt || !expectedHash) {
+    return false;
+  }
+  try {
+    const actualBuf = Buffer.from(hashOtpCode(normalized, salt), 'hex');
+    const expectedBuf = Buffer.from(expectedHash, 'hex');
+    if (actualBuf.length !== expectedBuf.length) {
+      return false;
+    }
+    return crypto.timingSafeEqual(actualBuf, expectedBuf);
+  } catch {
+    return false;
+  }
+}
+
+export function maskEmailAddress(email: string): string {
+  const normalized = normalizeEmail(email);
+  const atIdx = normalized.indexOf('@');
+  if (atIdx <= 0) return normalized;
+  const local = normalized.slice(0, atIdx);
+  const domain = normalized.slice(atIdx + 1);
+  const visiblePrefix = local.slice(0, Math.min(2, local.length));
+  return `${visiblePrefix}***@${domain}`;
+}
+
+export function escapeHtml(input: string): string {
+  return (input || '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}

@@ -5,9 +5,12 @@ import { DatabaseSync } from 'node:sqlite';
 import type { AuthUser, ConnectedProvider } from '../types/auth.ts';
 import type { ReelEvaluation } from '../types/evaluation.ts';
 import {
+  generateNumericOtp,
   generateOpaqueToken,
+  hashOtpCode,
   hashToken,
   normalizeEmail,
+  verifyOtpCode,
 } from './authLogic.ts';
 
 export type OAuthProviderName = 'google';
@@ -44,6 +47,22 @@ interface DbOAuthStateRow {
   code_verifier: string;
   redirect_uri: string;
   expires_at: string;
+}
+
+export interface DbEmailOtpChallengeRow {
+  id: string;
+  purpose: 'login' | 'register';
+  user_id: string | null;
+  email: string;
+  pending_name: string | null;
+  pending_password_hash: string | null;
+  code_salt: string;
+  code_hash: string;
+  attempts: number;
+  max_attempts: number;
+  expires_at: string;
+  last_sent_at: string;
+  created_at: string;
 }
 
 export class AppDatabase {
@@ -130,6 +149,23 @@ export class AppDatabase {
         overall_score REAL NOT NULL,
         file_name TEXT NOT NULL,
         payload_json TEXT NOT NULL,
+        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+      );
+
+      CREATE TABLE IF NOT EXISTS email_otp_challenges (
+        id TEXT PRIMARY KEY,
+        purpose TEXT NOT NULL CHECK (purpose IN ('login', 'register')),
+        user_id TEXT,
+        email TEXT NOT NULL,
+        pending_name TEXT,
+        pending_password_hash TEXT,
+        code_salt TEXT NOT NULL,
+        code_hash TEXT NOT NULL,
+        attempts INTEGER NOT NULL DEFAULT 0,
+        max_attempts INTEGER NOT NULL DEFAULT 5,
+        expires_at TEXT NOT NULL,
+        last_sent_at TEXT NOT NULL,
+        created_at TEXT NOT NULL,
         FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
       );
 
@@ -483,6 +519,154 @@ export class AppDatabase {
       .run(new Date().toISOString(), tokenHash);
 
     return { userId: row.user_id };
+  }
+
+  createEmailOtpChallenge(params: {
+    purpose: 'login' | 'register';
+    userId: string | null;
+    email: string;
+    pendingName?: string | null;
+    pendingPasswordHash?: string | null;
+    ttlMinutes?: number;
+    maxAttempts?: number;
+  }): { challengeId: string; otpCode: string; expiresAt: string } {
+    const normalizedEmail = normalizeEmail(params.email);
+    const now = new Date();
+    const nowIso = now.toISOString();
+    const expiresAt = new Date(
+      now.getTime() + (params.ttlMinutes ?? 10) * 60 * 1000
+    ).toISOString();
+
+    this.db
+      .prepare(`DELETE FROM email_otp_challenges WHERE expires_at <= ?`)
+      .run(nowIso);
+    this.db
+      .prepare(`DELETE FROM email_otp_challenges WHERE email = ? AND purpose = ?`)
+      .run(normalizedEmail, params.purpose);
+
+    const challengeId = crypto.randomUUID();
+    const otpCode = generateNumericOtp(6);
+    const codeSalt = generateOpaqueToken(16);
+    const codeHash = hashOtpCode(otpCode, codeSalt);
+
+    this.db
+      .prepare(
+        `INSERT INTO email_otp_challenges
+         (id, purpose, user_id, email, pending_name, pending_password_hash, code_salt, code_hash, attempts, max_attempts, expires_at, last_sent_at, created_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?)`
+      )
+      .run(
+        challengeId,
+        params.purpose,
+        params.userId,
+        normalizedEmail,
+        params.pendingName ?? null,
+        params.pendingPasswordHash ?? null,
+        codeSalt,
+        codeHash,
+        params.maxAttempts ?? 5,
+        expiresAt,
+        nowIso,
+        nowIso
+      );
+
+    return { challengeId, otpCode, expiresAt };
+  }
+
+  getEmailOtpChallenge(challengeId: string): DbEmailOtpChallengeRow | null {
+    const row = this.db
+      .prepare(`SELECT * FROM email_otp_challenges WHERE id = ?`)
+      .get(challengeId) as DbEmailOtpChallengeRow | undefined;
+    return row ?? null;
+  }
+
+  deleteEmailOtpChallenge(challengeId: string): void {
+    this.db.prepare(`DELETE FROM email_otp_challenges WHERE id = ?`).run(challengeId);
+  }
+
+  regenerateEmailOtpChallenge(
+    challengeId: string,
+    cooldownSeconds = 30,
+    ttlMinutes = 10
+  ):
+    | { status: 'ok'; challenge: DbEmailOtpChallengeRow; otpCode: string; expiresAt: string }
+    | { status: 'not_found' }
+    | { status: 'expired' }
+    | { status: 'cooldown'; retryAfterSeconds: number } {
+    const row = this.getEmailOtpChallenge(challengeId);
+    if (!row) return { status: 'not_found' };
+
+    const nowMs = Date.now();
+    if (new Date(row.expires_at).getTime() <= nowMs) {
+      this.deleteEmailOtpChallenge(challengeId);
+      return { status: 'expired' };
+    }
+
+    const lastSentMs = new Date(row.last_sent_at).getTime();
+    const elapsedSeconds = Math.floor((nowMs - lastSentMs) / 1000);
+    if (elapsedSeconds < cooldownSeconds) {
+      return {
+        status: 'cooldown',
+        retryAfterSeconds: Math.max(1, cooldownSeconds - elapsedSeconds),
+      };
+    }
+
+    const otpCode = generateNumericOtp(6);
+    const codeSalt = generateOpaqueToken(16);
+    const codeHash = hashOtpCode(otpCode, codeSalt);
+    const nowIso = new Date(nowMs).toISOString();
+    const expiresAt = new Date(nowMs + ttlMinutes * 60 * 1000).toISOString();
+
+    this.db
+      .prepare(
+        `UPDATE email_otp_challenges
+         SET code_salt = ?, code_hash = ?, attempts = 0, expires_at = ?, last_sent_at = ?
+         WHERE id = ?`
+      )
+      .run(codeSalt, codeHash, expiresAt, nowIso, challengeId);
+
+    return {
+      status: 'ok',
+      challenge: this.getEmailOtpChallenge(challengeId)!,
+      otpCode,
+      expiresAt,
+    };
+  }
+
+  verifyEmailOtpChallenge(
+    challengeId: string,
+    rawCode: string
+  ):
+    | { status: 'verified'; challenge: DbEmailOtpChallengeRow }
+    | { status: 'not_found' }
+    | { status: 'expired' }
+    | { status: 'max_attempts' }
+    | { status: 'invalid'; attemptsRemaining: number } {
+    const row = this.getEmailOtpChallenge(challengeId);
+    if (!row) return { status: 'not_found' };
+
+    if (new Date(row.expires_at).getTime() <= Date.now()) {
+      this.deleteEmailOtpChallenge(challengeId);
+      return { status: 'expired' };
+    }
+
+    if (row.attempts >= row.max_attempts) {
+      return { status: 'max_attempts' };
+    }
+
+    if (!verifyOtpCode(rawCode, row.code_salt, row.code_hash)) {
+      const nextAttempts = row.attempts + 1;
+      this.db
+        .prepare(`UPDATE email_otp_challenges SET attempts = ? WHERE id = ?`)
+        .run(nextAttempts, challengeId);
+      return {
+        status: 'invalid',
+        attemptsRemaining: Math.max(0, row.max_attempts - nextAttempts),
+      };
+    }
+
+    this.deleteEmailOtpChallenge(challengeId);
+    return { status: 'verified', challenge: row };
   }
 
   saveEvaluationForUser(userId: string, evaluation: ReelEvaluation): void {

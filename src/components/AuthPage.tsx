@@ -1,11 +1,18 @@
 import { useEffect, useState, type FormEvent } from 'react';
-import { ArrowLeft, KeyRound, Lock, Mail, User } from 'lucide-react';
+import { ArrowLeft, KeyRound, Lock, Mail, RotateCw, ShieldCheck, User } from 'lucide-react';
 import type { AuthProviderAvailability, AuthUser } from '../types/auth.ts';
+import { parseAuthApiResponse } from '../utils/authResponse.ts';
 import { launchOAuthPopup } from '../utils/oauthPopup.ts';
 import { SocialAuthButtons } from './SocialAuthButtons.tsx';
 import { ActionButton, AlertBanner, ElevatedGlassPanel, GlassPanel, ReeViewMark } from './ui/GlassPrimitives.tsx';
 
 type AuthMode = 'login' | 'register' | 'forgot' | 'reset';
+
+interface OtpChallengeState {
+  challengeId: string;
+  purpose: 'login' | 'register';
+  maskedEmail: string;
+}
 
 interface AuthPageProps {
   initialMode?: 'login' | 'register';
@@ -31,6 +38,10 @@ export function AuthPage({
   const [confirmPassword, setConfirmPassword] = useState('');
   const [resetToken, setResetToken] = useState(initialResetToken || '');
 
+  const [otpChallenge, setOtpChallenge] = useState<OtpChallengeState | null>(null);
+  const [otpCode, setOtpCode] = useState('');
+  const [resendCountdown, setResendCountdown] = useState(0);
+
   const [busyProvider, setBusyProvider] = useState<'google' | 'password' | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(initialAuthError || null);
   const [infoMessage, setInfoMessage] = useState<string | null>(null);
@@ -39,17 +50,30 @@ export function AuthPage({
     if (initialResetToken) {
       setMode('reset');
       setResetToken(initialResetToken);
+      setOtpChallenge(null);
     }
   }, [initialResetToken]);
 
   useEffect(() => {
     if (!initialResetToken) {
       setMode(initialMode);
+      setOtpChallenge(null);
     }
   }, [initialMode, initialResetToken]);
 
+  useEffect(() => {
+    if (resendCountdown <= 0) return;
+    const timer = window.setInterval(() => {
+      setResendCountdown((prev) => (prev > 0 ? prev - 1 : 0));
+    }, 1000);
+    return () => window.clearInterval(timer);
+  }, [resendCountdown]);
+
   function switchMode(nextMode: AuthMode) {
     setMode(nextMode);
+    setOtpChallenge(null);
+    setOtpCode('');
+    setResendCountdown(0);
     setErrorMessage(null);
     setInfoMessage(null);
   }
@@ -108,15 +132,18 @@ export function AuthPage({
           },
           body: JSON.stringify({ email }),
         });
-        const data = (await res.json().catch(() => null)) as {
-          message?: string;
-          error?: { message?: string };
-        } | null;
-        if (!res.ok) {
-          setErrorMessage(data?.error?.message || 'Unable to send password reset email.');
+        const parsed = parseAuthApiResponse({
+          ok: res.ok,
+          status: res.status,
+          contentType: res.headers.get('content-type'),
+          redirected: res.redirected,
+          rawBody: await res.text(),
+        });
+        if (!parsed.ok) {
+          setErrorMessage(parsed.error.message);
         } else {
           setInfoMessage(
-            data?.message ||
+            parsed.data.message ||
               'If an account exists for that email address, reset instructions have been sent.'
           );
         }
@@ -145,16 +172,20 @@ export function AuthPage({
           },
           body: JSON.stringify({ token: resetToken, newPassword: password }),
         });
-        const data = (await res.json().catch(() => null)) as {
-          user?: AuthUser;
-          sessionToken?: string;
-          error?: { message?: string };
-        } | null;
-        if (!res.ok || !data?.user) {
-          setErrorMessage(data?.error?.message || 'Could not reset password.');
+        const parsed = parseAuthApiResponse({
+          ok: res.ok,
+          status: res.status,
+          contentType: res.headers.get('content-type'),
+          redirected: res.redirected,
+          rawBody: await res.text(),
+        });
+        if (!parsed.ok || !parsed.data.user) {
+          setErrorMessage(
+            !parsed.ok ? parsed.error.message : 'Could not reset password.'
+          );
         } else {
           window.history.replaceState({}, '', '/');
-          onAuthenticated(data.user, data.sessionToken);
+          onAuthenticated(parsed.data.user, parsed.data.sessionToken);
         }
       } catch {
         setErrorMessage('Network error while resetting password.');
@@ -180,23 +211,135 @@ export function AuthPage({
         },
         body: JSON.stringify(bodyPayload),
       });
-      const data = (await res.json().catch(() => null)) as {
-        user?: AuthUser;
-        sessionToken?: string;
-        error?: { message?: string };
-      } | null;
+      const parsed = parseAuthApiResponse({
+        ok: res.ok,
+        status: res.status,
+        contentType: res.headers.get('content-type'),
+        redirected: res.redirected,
+        rawBody: await res.text(),
+      });
 
-      if (!res.ok || !data?.user) {
+      if (!parsed.ok) {
+        setErrorMessage(parsed.error.message);
+        return;
+      }
+
+      const data = parsed.data;
+      if (data.otpRequired && data.challengeId) {
+        setOtpChallenge({
+          challengeId: data.challengeId,
+          purpose: data.purpose || (mode === 'register' ? 'register' : 'login'),
+          maskedEmail: data.maskedEmail || email,
+        });
+        setOtpCode('');
+        setResendCountdown(data.resendCooldownSeconds ?? 30);
+        return;
+      }
+
+      if (data.user) {
+        onAuthenticated(data.user, data.sessionToken);
+      } else {
         setErrorMessage(
-          data?.error?.message ||
-            (mode === 'register' ? 'Could not create account.' : 'Sign in failed.')
+          `Unexpected response payload from authentication server (HTTP ${res.status}).`
+        );
+      }
+    } catch {
+      setErrorMessage('Network error while contacting authentication server.');
+    } finally {
+      setBusyProvider(null);
+    }
+  }
+
+  async function handleVerifyOtp(e: FormEvent) {
+    e.preventDefault();
+    if (!otpChallenge) return;
+    setErrorMessage(null);
+    setInfoMessage(null);
+
+    const cleanedCode = otpCode.replace(/\D/g, '');
+    if (cleanedCode.length !== 6) {
+      setErrorMessage('Please enter the 6-digit verification code sent to your email.');
+      return;
+    }
+
+    setBusyProvider('password');
+    try {
+      const res = await fetch('/api/auth/otp/verify', {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: {
+          'Content-Type': 'application/json',
+          Accept: 'application/json',
+          'X-Requested-With': 'ReelsEvaluator',
+        },
+        body: JSON.stringify({
+          challengeId: otpChallenge.challengeId,
+          code: cleanedCode,
+        }),
+      });
+      const parsed = parseAuthApiResponse({
+        ok: res.ok,
+        status: res.status,
+        contentType: res.headers.get('content-type'),
+        redirected: res.redirected,
+        rawBody: await res.text(),
+      });
+
+      if (!parsed.ok || !parsed.data.user) {
+        setErrorMessage(
+          !parsed.ok ? parsed.error.message : 'Verification failed. Please try again.'
         );
         return;
       }
 
-      onAuthenticated(data.user, data.sessionToken);
+      onAuthenticated(parsed.data.user, parsed.data.sessionToken);
     } catch {
-      setErrorMessage('Network error while contacting authentication server.');
+      setErrorMessage('Network error while verifying code.');
+    } finally {
+      setBusyProvider(null);
+    }
+  }
+
+  async function handleResendOtp() {
+    if (!otpChallenge || resendCountdown > 0 || busyProvider !== null) return;
+    setErrorMessage(null);
+    setInfoMessage(null);
+    setBusyProvider('password');
+
+    try {
+      const res = await fetch('/api/auth/otp/resend', {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: {
+          'Content-Type': 'application/json',
+          Accept: 'application/json',
+          'X-Requested-With': 'ReelsEvaluator',
+        },
+        body: JSON.stringify({ challengeId: otpChallenge.challengeId }),
+      });
+      const parsed = parseAuthApiResponse({
+        ok: res.ok,
+        status: res.status,
+        contentType: res.headers.get('content-type'),
+        redirected: res.redirected,
+        rawBody: await res.text(),
+      });
+
+      if (!parsed.ok) {
+        if (parsed.error.retryAfterSeconds) {
+          setResendCountdown(parsed.error.retryAfterSeconds);
+        }
+        setErrorMessage(parsed.error.message);
+        return;
+      }
+
+      setOtpCode('');
+      setResendCountdown(parsed.data.resendCooldownSeconds ?? 30);
+      setInfoMessage(
+        `A new 6-digit verification code was sent to ${parsed.data.maskedEmail || otpChallenge.maskedEmail}.`
+      );
+    } catch {
+      setErrorMessage('Network error while resending verification code.');
     } finally {
       setBusyProvider(null);
     }
@@ -226,7 +369,7 @@ export function AuthPage({
         </div>
 
         <ElevatedGlassPanel className="p-6 sm:p-7">
-          {mode !== 'forgot' && mode !== 'reset' && (
+          {mode !== 'forgot' && mode !== 'reset' && !otpChallenge && (
             <div
               className="flex rounded-xl bg-slate-950/75 border border-white/8 p-1 mb-6"
               role="tablist"
@@ -263,22 +406,30 @@ export function AuthPage({
 
           <div className="mb-5">
             <h1 className="font-display text-xl font-bold text-white">
-              {mode === 'login'
-                ? 'Welcome back to ReeView'
-                : mode === 'register'
-                  ? 'Create your ReeView account'
-                  : mode === 'forgot'
-                    ? 'Reset your password'
-                    : 'Set a new password'}
+              {otpChallenge
+                ? 'Verify your email'
+                : mode === 'login'
+                  ? 'Welcome back to ReeView'
+                  : mode === 'register'
+                    ? 'Create your ReeView account'
+                    : mode === 'forgot'
+                      ? 'Reset your password'
+                      : 'Set a new password'}
             </h1>
             <p className="mt-1 text-sm text-slate-300 leading-relaxed">
-              {mode === 'login'
-                ? 'Sign in to evaluate short-form Reels and access your saved assessments.'
-                : mode === 'register'
-                  ? 'Start evaluating marketing Reels with Google Gemini Free Tier.'
-                  : mode === 'forgot'
-                    ? 'Enter the email associated with your account to receive a reset link.'
-                    : 'Choose a strong password (minimum 8 characters) for your account.'}
+              {otpChallenge
+                ? `Enter the 6-digit verification code sent to ${otpChallenge.maskedEmail} before ${
+                    otpChallenge.purpose === 'register'
+                      ? 'completing registration'
+                      : 'signing in'
+                  }.`
+                : mode === 'login'
+                  ? 'Sign in with Google or verify via Email OTP to access your saved assessments.'
+                  : mode === 'register'
+                    ? 'Start evaluating marketing Reels with Google Gemini Free Tier.'
+                    : mode === 'forgot'
+                      ? 'Enter the email associated with your account to receive a reset link.'
+                      : 'Choose a strong password (minimum 8 characters) for your account.'}
             </p>
           </div>
 
@@ -294,6 +445,76 @@ export function AuthPage({
             </div>
           )}
 
+          {otpChallenge ? (
+            <form onSubmit={handleVerifyOtp} className="space-y-4">
+              <div>
+                <label htmlFor="auth-otp-code" className="block text-xs font-medium text-slate-300 mb-1.5">
+                  6-Digit Verification Code
+                </label>
+                <div className="relative">
+                  <ShieldCheck className="h-4 w-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" aria-hidden="true" />
+                  <input
+                    id="auth-otp-code"
+                    type="text"
+                    inputMode="numeric"
+                    autoComplete="one-time-code"
+                    pattern="[0-9]{6}"
+                    maxLength={6}
+                    required
+                    autoFocus
+                    value={otpCode}
+                    onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                    placeholder="000000"
+                    className="w-full h-12 px-10 rounded-xl rv-input-solid font-mono text-lg tracking-[0.35em] text-center"
+                  />
+                </div>
+              </div>
+
+              <ActionButton
+                type="submit"
+                variant="primary"
+                size="lg"
+                disabled={busyProvider !== null || otpCode.length !== 6}
+                className="w-full"
+              >
+                {busyProvider === 'password'
+                  ? 'Verifying...'
+                  : otpChallenge.purpose === 'register'
+                    ? 'Verify & Create Account'
+                    : 'Verify & Sign In'}
+              </ActionButton>
+
+              <div className="flex items-center justify-between pt-2 text-xs">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setOtpChallenge(null);
+                    setOtpCode('');
+                    setResendCountdown(0);
+                    setErrorMessage(null);
+                    setInfoMessage(null);
+                  }}
+                  className="inline-flex items-center gap-1.5 font-medium text-slate-300 hover:text-white cursor-pointer"
+                >
+                  <ArrowLeft className="h-3.5 w-3.5" aria-hidden="true" />
+                  <span>Use a different email</span>
+                </button>
+
+                <button
+                  type="button"
+                  disabled={resendCountdown > 0 || busyProvider !== null}
+                  onClick={handleResendOtp}
+                  className="inline-flex items-center gap-1.5 font-medium text-indigo-300 hover:text-indigo-200 disabled:text-slate-500 disabled:cursor-not-allowed cursor-pointer"
+                >
+                  <RotateCw className="h-3.5 w-3.5" aria-hidden="true" />
+                  <span>
+                    {resendCountdown > 0 ? `Resend in ${resendCountdown}s` : 'Resend code'}
+                  </span>
+                </button>
+              </div>
+            </form>
+          ) : (
+            <>
           {(mode === 'login' || mode === 'register') && (
             <>
               <SocialAuthButtons
@@ -438,17 +659,28 @@ export function AuthPage({
               <span>Back to Sign In</span>
             </button>
           )}
+            </>
+          )}
         </ElevatedGlassPanel>
 
-        {providerAvailability && !providerAvailability.googleConfigured && (
-          <GlassPanel className="mt-4 p-4 text-xs text-slate-300 space-y-1.5">
-            <p className="font-semibold text-white">OAuth Provider Configuration Status</p>
-            <p>
-              Google Sign-In requires <code className="font-mono text-indigo-300">GOOGLE_CLIENT_ID</code> and{' '}
-              <code className="font-mono text-indigo-300">GOOGLE_CLIENT_SECRET</code>.
-            </p>
-          </GlassPanel>
-        )}
+        {providerAvailability &&
+          (!providerAvailability.googleConfigured || !providerAvailability.emailOtpConfigured) && (
+            <GlassPanel className="mt-4 p-4 text-xs text-slate-300 space-y-1.5">
+              <p className="font-semibold text-white">Authentication Configuration Status</p>
+              {!providerAvailability.googleConfigured && (
+                <p>
+                  Google Sign-In requires <code className="font-mono text-indigo-300">GOOGLE_CLIENT_ID</code> and{' '}
+                  <code className="font-mono text-indigo-300">GOOGLE_CLIENT_SECRET</code>.
+                </p>
+              )}
+              {!providerAvailability.emailOtpConfigured && (
+                <p>
+                  Email OTP verification requires <code className="font-mono text-indigo-300">RESEND_API_KEY</code> and{' '}
+                  <code className="font-mono text-indigo-300">EMAIL_FROM</code>.
+                </p>
+              )}
+            </GlassPanel>
+          )}
       </div>
     </div>
   );

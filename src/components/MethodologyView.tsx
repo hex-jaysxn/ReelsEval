@@ -200,7 +200,7 @@ export function MethodologyView() {
           <h1 className="font-display text-xl font-bold text-white">
             Reels Marketing Content Effectiveness Assessment Rubric
           </h1>
-          <p className="mt-2 text-sm text-slate-300 max-w-3xl leading-relaxed">
+          <p className="mt-2 text-sm text-slate-200 max-w-3xl leading-relaxed">
             Each of the four Reels Marketing Content variables is scored from{' '}
             <span className="font-mono font-semibold text-white">2</span> to{' '}
             <span className="font-mono font-semibold text-white">5</span> across three Brand
@@ -208,16 +208,16 @@ export function MethodologyView() {
             <span className="font-medium text-white">Participation</span>,{' '}
             <span className="font-medium text-white">Sharing</span>). Each variable&apos;s average
             is summed to form the{' '}
-            <span className="font-mono font-semibold text-indigo-300">8.00–20.00</span> Overall
+            <span className="font-mono font-semibold text-cyan-300">8.00–20.00</span> Overall
             Effectiveness Score.
           </p>
-          <p className="mt-2 text-xs text-slate-400">
+          <p className="mt-2 text-xs text-slate-300">
             Scoring Guide: 5 – Very Effective · 4 – Effective · 3 – Moderately Effective · 2 – Less Effective
           </p>
         </div>
 
         {/* Section I-II: Interactive Rubric Matrix by Variable */}
-        <div className="pt-6 border-t border-white/10">
+        <div className="pt-6 border-t border-sky-400/15">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
             <h2 className="font-display text-base font-semibold text-white">
               Criteria by Content Characteristic
@@ -226,7 +226,7 @@ export function MethodologyView() {
             <div
               role="tablist"
               aria-label="Select Reels marketing content variable"
-              className="inline-flex flex-wrap items-center gap-1 p-1 bg-slate-950/75 border border-white/10 rounded-xl self-start"
+              className="inline-flex flex-wrap items-center gap-1 p-1 bg-[#070b28] border border-sky-400/20 rounded-xl self-start"
             >
               {(
                 [
@@ -244,15 +244,15 @@ export function MethodologyView() {
                     role="tab"
                     aria-selected={selected}
                     onClick={() => setSelectedVar(tab.id)}
-                    className={`relative px-3 py-1.5 text-xs font-medium rounded-lg transition-colors duration-150 whitespace-nowrap shrink-0 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400 ${
-                      selected ? 'text-white' : 'text-slate-400 hover:text-white'
+                    className={`relative px-3 py-1.5 text-xs font-medium rounded-lg transition-colors duration-150 whitespace-nowrap shrink-0 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400 ${
+                      selected ? 'text-white' : 'text-slate-300 hover:text-white'
                     }`}
                   >
                     {selected && (
                       <motion.span
                         layoutId="rv-rubric-tab"
                         transition={reduced ? { duration: 0.01 } : RV_SPRING}
-                        className="absolute inset-0 rounded-lg bg-indigo-600 shadow-xs"
+                        className="absolute inset-0 rounded-lg rv-cta-gradient shadow-xs"
                         aria-hidden="true"
                       />
                     )}
@@ -271,31 +271,31 @@ export function MethodologyView() {
               exit={reduced ? { opacity: 0 } : { opacity: 0, y: -4 }}
               transition={{ duration: reduced ? 0.01 : 0.18, ease: RV_EASE }}
             >
-              <div className="mb-4 flex flex-wrap items-baseline gap-3 text-xs text-slate-400">
-                <span className="font-display text-sm font-semibold text-indigo-300">
+              <div className="mb-4 flex flex-wrap items-baseline gap-3 text-xs text-slate-300">
+                <span className="font-display text-sm font-semibold text-cyan-300">
                   {current.title}
                 </span>
-                <span aria-hidden="true">·</span>
+                <span className="text-slate-500" aria-hidden="true">·</span>
                 <span className="tabular-nums">Survey Mean: {current.surveyMean}</span>
-                <span aria-hidden="true">·</span>
+                <span className="text-slate-500" aria-hidden="true">·</span>
                 <span className="tabular-nums">
                   Correlation with Overall Brand Engagement: {current.correlation}
                 </span>
               </div>
 
-              <div className="overflow-x-auto border border-white/10 rounded-xl bg-slate-950/45">
+              <div className="overflow-x-auto border border-sky-400/20 rounded-xl bg-[#070b28]/75">
                 <table className="w-full text-left border-collapse">
                   <thead>
-                    <tr className="bg-slate-950/70 border-b border-white/10 text-xs font-semibold text-slate-300">
+                    <tr className="bg-[#090e32] border-b border-sky-400/20 text-xs font-semibold text-slate-200">
                       <th className="py-3 px-4 w-20">Rating</th>
                       <th className="py-3 px-4">Interaction</th>
                       <th className="py-3 px-4">Participation</th>
                       <th className="py-3 px-4">Sharing</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-white/8 text-xs text-slate-300 leading-relaxed">
+                  <tbody className="divide-y divide-sky-400/10 text-xs text-slate-200 leading-relaxed">
                     {current.rows.map((row) => (
-                      <tr key={row.rating} className="hover:bg-white/[0.02] transition-colors">
+                      <tr key={row.rating} className="hover:bg-white/[0.03] transition-colors">
                         <td className="py-3.5 px-4 align-top font-mono font-bold text-white tabular-nums">
                           {row.rating}
                         </td>
@@ -312,25 +312,25 @@ export function MethodologyView() {
         </div>
 
         {/* Section III: Scoring & Computation */}
-        <div className="pt-6 border-t border-white/10 grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="pt-6 border-t border-sky-400/15 grid grid-cols-1 lg:grid-cols-2 gap-6">
           <div>
             <h2 className="font-display text-base font-semibold text-white">
               III. Scoring &amp; Computation Formulas
             </h2>
-            <div className="mt-3 space-y-2.5 text-sm text-slate-300">
+            <div className="mt-3 space-y-2.5 text-sm text-slate-200">
               <p>
                 <span className="font-medium text-white">Variable Score:</span>{' '}
-                <span className="font-mono text-xs bg-slate-950 border border-white/10 text-indigo-200 px-2.5 py-1 rounded-md">
+                <span className="font-mono text-xs bg-[#070b28] border border-sky-400/25 text-cyan-200 px-2.5 py-1 rounded-md">
                   (Interaction + Participation + Sharing) ÷ 3
                 </span>
               </p>
               <p>
                 <span className="font-medium text-white">Overall Score:</span>{' '}
-                <span className="font-mono text-xs bg-slate-950 border border-white/10 text-indigo-200 px-2.5 py-1 rounded-md">
+                <span className="font-mono text-xs bg-[#070b28] border border-sky-400/25 text-cyan-200 px-2.5 py-1 rounded-md">
                   Informational + Entertainment + Trendiness + Relatable
                 </span>
               </p>
-              <p className="text-xs text-slate-400 pt-1 tabular-nums">
+              <p className="text-xs text-slate-300 pt-1 tabular-nums">
                 Maximum Score: 20.00 points · Minimum Score: 8.00 points
               </p>
             </div>
@@ -340,10 +340,10 @@ export function MethodologyView() {
             <h3 className="font-display text-sm font-semibold text-white mb-2">
               Example Scoring Matrix (16.33 / 20 — Effective)
             </h3>
-            <div className="overflow-x-auto border border-white/10 rounded-xl bg-slate-950/45">
+            <div className="overflow-x-auto border border-sky-400/20 rounded-xl bg-[#070b28]/75">
               <table className="w-full text-left border-collapse text-xs">
                 <thead>
-                  <tr className="bg-slate-950/70 border-b border-white/10 font-semibold text-slate-300">
+                  <tr className="bg-[#090e32] border-b border-sky-400/20 font-semibold text-slate-200">
                     <th className="py-2 px-3">Variable</th>
                     <th className="py-2 px-2 text-right">Int</th>
                     <th className="py-2 px-2 text-right">Part</th>
@@ -351,7 +351,7 @@ export function MethodologyView() {
                     <th className="py-2 px-3 text-right">Average</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-white/8 tabular-nums font-mono text-slate-200">
+                <tbody className="divide-y divide-sky-400/10 tabular-nums font-mono text-slate-100">
                   <tr>
                     <td className="py-2 px-3 font-sans font-medium text-white">Informational</td>
                     <td className="py-2 px-2 text-right">4</td>
@@ -382,11 +382,11 @@ export function MethodologyView() {
                   </tr>
                 </tbody>
                 <tfoot>
-                  <tr className="border-t border-white/12 bg-slate-950/70 font-mono font-semibold">
+                  <tr className="border-t border-sky-400/20 bg-[#090e32] font-mono font-semibold">
                     <td colSpan={4} className="py-2 px-3 font-sans text-white">
                       Total
                     </td>
-                    <td className="py-2 px-3 text-right text-indigo-300">16.33 / 20</td>
+                    <td className="py-2 px-3 text-right text-cyan-300">16.33 / 20</td>
                   </tr>
                 </tfoot>
               </table>
@@ -395,38 +395,38 @@ export function MethodologyView() {
         </div>
 
         {/* Sections IV & V: Interpretation Tables */}
-        <div className="pt-6 border-t border-white/10 grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="pt-6 border-t border-sky-400/15 grid grid-cols-1 lg:grid-cols-2 gap-6">
           <div>
             <h2 className="font-display text-base font-semibold text-white mb-3">
               IV. Per-Variable Effectiveness Levels
             </h2>
-            <div className="border border-white/10 rounded-xl overflow-hidden bg-slate-950/45">
+            <div className="border border-sky-400/20 rounded-xl overflow-hidden bg-[#070b28]/75">
               <table className="w-full text-left border-collapse text-xs">
                 <thead>
-                  <tr className="bg-slate-950/70 border-b border-white/10 font-semibold text-slate-300">
+                  <tr className="bg-[#090e32] border-b border-sky-400/20 font-semibold text-slate-200">
                     <th className="py-2.5 px-3">Average</th>
                     <th className="py-2.5 px-3">Level</th>
                     <th className="py-2.5 px-3">Interpretation</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-white/8 text-slate-300">
+                <tbody className="divide-y divide-sky-400/10 text-slate-200">
                   <tr>
-                    <td className="py-2.5 px-3 font-mono tabular-nums whitespace-nowrap text-slate-200">4.25–5.00</td>
+                    <td className="py-2.5 px-3 font-mono tabular-nums whitespace-nowrap text-slate-100">4.25–5.00</td>
                     <td className="py-2.5 px-3 font-semibold text-emerald-300 whitespace-nowrap">Very Effective</td>
                     <td className="py-2.5 px-3">Highly effective in encouraging brand engagement.</td>
                   </tr>
                   <tr>
-                    <td className="py-2.5 px-3 font-mono tabular-nums whitespace-nowrap text-slate-200">3.50–4.24</td>
-                    <td className="py-2.5 px-3 font-semibold text-indigo-300 whitespace-nowrap">Effective</td>
+                    <td className="py-2.5 px-3 font-mono tabular-nums whitespace-nowrap text-slate-100">3.50–4.24</td>
+                    <td className="py-2.5 px-3 font-semibold text-cyan-300 whitespace-nowrap">Effective</td>
                     <td className="py-2.5 px-3">Effective in encouraging brand engagement.</td>
                   </tr>
                   <tr>
-                    <td className="py-2.5 px-3 font-mono tabular-nums whitespace-nowrap text-slate-200">2.75–3.49</td>
+                    <td className="py-2.5 px-3 font-mono tabular-nums whitespace-nowrap text-slate-100">2.75–3.49</td>
                     <td className="py-2.5 px-3 font-semibold text-amber-300 whitespace-nowrap">Moderately Effective</td>
                     <td className="py-2.5 px-3">Moderate effectiveness; needs improvement.</td>
                   </tr>
                   <tr>
-                    <td className="py-2.5 px-3 font-mono tabular-nums whitespace-nowrap text-slate-200">2.00–2.74</td>
+                    <td className="py-2.5 px-3 font-mono tabular-nums whitespace-nowrap text-slate-100">2.00–2.74</td>
                     <td className="py-2.5 px-3 font-semibold text-red-300 whitespace-nowrap">Less Effective</td>
                     <td className="py-2.5 px-3">Limited effectiveness in encouraging engagement.</td>
                   </tr>
@@ -439,33 +439,33 @@ export function MethodologyView() {
             <h2 className="font-display text-base font-semibold text-white mb-3">
               V. Overall Reels Effectiveness Levels
             </h2>
-            <div className="border border-white/10 rounded-xl overflow-hidden bg-slate-950/45">
+            <div className="border border-sky-400/20 rounded-xl overflow-hidden bg-[#070b28]/75">
               <table className="w-full text-left border-collapse text-xs">
                 <thead>
-                  <tr className="bg-slate-950/70 border-b border-white/10 font-semibold text-slate-300">
+                  <tr className="bg-[#090e32] border-b border-sky-400/20 font-semibold text-slate-200">
                     <th className="py-2.5 px-3">Total Score</th>
                     <th className="py-2.5 px-3">Level</th>
                     <th className="py-2.5 px-3">Interpretation</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-white/8 text-slate-300">
+                <tbody className="divide-y divide-sky-400/10 text-slate-200">
                   <tr>
-                    <td className="py-2.5 px-3 font-mono tabular-nums whitespace-nowrap text-slate-200">17.00–20.00</td>
+                    <td className="py-2.5 px-3 font-mono tabular-nums whitespace-nowrap text-slate-100">17.00–20.00</td>
                     <td className="py-2.5 px-3 font-semibold text-emerald-300 whitespace-nowrap">Very Effective</td>
                     <td className="py-2.5 px-3">Effectively incorporates all four characteristics.</td>
                   </tr>
                   <tr>
-                    <td className="py-2.5 px-3 font-mono tabular-nums whitespace-nowrap text-slate-200">14.00–16.99</td>
-                    <td className="py-2.5 px-3 font-semibold text-indigo-300 whitespace-nowrap">Effective</td>
+                    <td className="py-2.5 px-3 font-mono tabular-nums whitespace-nowrap text-slate-100">14.00–16.99</td>
+                    <td className="py-2.5 px-3 font-semibold text-cyan-300 whitespace-nowrap">Effective</td>
                     <td className="py-2.5 px-3">Good effectiveness across content characteristics.</td>
                   </tr>
                   <tr>
-                    <td className="py-2.5 px-3 font-mono tabular-nums whitespace-nowrap text-slate-200">11.00–13.99</td>
+                    <td className="py-2.5 px-3 font-mono tabular-nums whitespace-nowrap text-slate-100">11.00–13.99</td>
                     <td className="py-2.5 px-3 font-semibold text-amber-300 whitespace-nowrap">Moderately Effective</td>
                     <td className="py-2.5 px-3">Requires improvement in some characteristics.</td>
                   </tr>
                   <tr>
-                    <td className="py-2.5 px-3 font-mono tabular-nums whitespace-nowrap text-slate-200">8.00–10.99</td>
+                    <td className="py-2.5 px-3 font-mono tabular-nums whitespace-nowrap text-slate-100">8.00–10.99</td>
                     <td className="py-2.5 px-3 font-semibold text-red-300 whitespace-nowrap">Less Effective</td>
                     <td className="py-2.5 px-3">Requires significant content improvement.</td>
                   </tr>
@@ -475,7 +475,7 @@ export function MethodologyView() {
           </div>
         </div>
 
-        <div className="pt-6 border-t border-white/10 text-xs text-slate-300 leading-relaxed">
+        <div className="pt-6 border-t border-sky-400/15 text-xs text-slate-200 leading-relaxed">
           <p>
             <span className="font-semibold text-white">Methodological Note:</span> The rubric
             evaluates the content&apos;s demonstrated characteristics and its potential to encourage

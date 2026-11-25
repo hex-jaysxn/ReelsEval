@@ -129,8 +129,8 @@ export function UploadStage({
                 onDrop={handleDrop}
                 className={`flex-1 min-h-[340px] flex flex-col items-center justify-center text-center rounded-2xl border-2 border-dashed p-6 transition-colors duration-200 ${
                   isDragging
-                    ? 'border-indigo-400 bg-indigo-500/15 shadow-[0_0_24px_rgba(99,102,241,0.18)]'
-                    : 'border-slate-700/80 bg-slate-950/60 hover:border-slate-500'
+                    ? 'border-cyan-400 bg-cyan-500/12 shadow-[0_0_24px_rgba(6,182,212,0.2)]'
+                    : 'border-sky-400/25 bg-[#070b28]/75 hover:border-cyan-400/45'
                 }`}
               >
                 <motion.div
@@ -142,17 +142,17 @@ export function UploadStage({
                         : { y: 0, scale: 1 }
                   }
                   transition={RV_SPRING}
-                  className="flex h-12 w-12 items-center justify-center rounded-xl bg-slate-900 border border-white/15 text-indigo-300 mb-4"
+                  className="flex h-12 w-12 items-center justify-center rounded-xl bg-[#0e154a] border border-cyan-400/30 text-cyan-300 mb-4"
                 >
                   <UploadCloud className="h-6 w-6" aria-hidden="true" />
                 </motion.div>
                 <h2 className="font-display text-base font-semibold text-white">
                   Upload Short-Form Reel
                 </h2>
-                <p className="mt-1.5 text-sm text-slate-300 max-w-xs leading-relaxed">
+                <p className="mt-1.5 text-sm text-slate-200 max-w-xs leading-relaxed">
                   Drag and drop an MP4, WebM, or MOV video here, or browse from your device.
                 </p>
-                <p className="mt-2 text-xs text-slate-400">
+                <p className="mt-2 text-xs text-slate-300">
                   Max 45 MB · Optimized for Gemini Free Tier
                 </p>
 
@@ -187,7 +187,7 @@ export function UploadStage({
                 transition={{ duration: reduced ? 0.01 : 0.26, ease: RV_EASE }}
                 className="flex flex-col h-full"
               >
-                <div className="relative rounded-2xl overflow-hidden bg-slate-950 border border-white/15 aspect-[9/14] max-h-[420px] flex items-center justify-center shadow-lg">
+                <div className="relative rounded-2xl overflow-hidden bg-[#05081f] border border-sky-400/25 aspect-[9/14] max-h-[420px] flex items-center justify-center shadow-lg">
                   <video
                     src={previewUrl}
                     controls
@@ -205,7 +205,7 @@ export function UploadStage({
                   />
                 </div>
 
-                <div className="mt-3 flex items-center justify-between gap-3 text-xs text-slate-400">
+                <div className="mt-3 flex items-center justify-between gap-3 text-xs text-slate-300">
                   <div className="min-w-0">
                     <p className="font-medium text-white truncate">
                       {videoMetadata?.fileName}
@@ -243,11 +243,11 @@ export function UploadStage({
         {/* Right: Evaluation Parameters & Launch CTA */}
         <div className="flex-1 flex flex-col justify-between">
           <div>
-            <div className="border-b border-white/10 pb-4">
+            <div className="border-b border-sky-400/15 pb-4">
               <h1 className="font-display text-2xl font-bold tracking-tight text-white text-balance">
                 Evaluate Reels Marketing &amp; Brand Engagement
               </h1>
-              <p className="mt-1.5 text-sm text-slate-300 leading-relaxed max-w-2xl">
+              <p className="mt-1.5 text-sm text-slate-200 leading-relaxed max-w-2xl">
                 Upload a short-form marketing video for real multimodal analysis using Google Gemini Free Tier. Each of the four Reels Marketing Content variables is scored across Interaction, Participation, and Sharing (2–5 rating scale; 8.00–20.00 overall score).
               </p>
             </div>
@@ -264,7 +264,7 @@ export function UploadStage({
               <div>
                 <label
                   htmlFor="target-persona-select"
-                  className="block text-sm font-medium text-slate-200 mb-1.5"
+                  className="block text-sm font-medium text-slate-100 mb-1.5"
                 >
                   Primary Target Audience
                 </label>
@@ -291,7 +291,7 @@ export function UploadStage({
               <div>
                 <label
                   htmlFor="campaign-objective-select"
-                  className="block text-sm font-medium text-slate-200 mb-1.5"
+                  className="block text-sm font-medium text-slate-100 mb-1.5"
                 >
                   Campaign Objective
                 </label>
@@ -319,9 +319,9 @@ export function UploadStage({
             <div className="mt-5">
               <label
                 htmlFor="brand-context-input"
-                className="block text-sm font-medium text-slate-200 mb-1.5"
+                className="block text-sm font-medium text-slate-100 mb-1.5"
               >
-                Product or Brand Context <span className="font-normal text-slate-400">(Optional)</span>
+                Product or Brand Context <span className="font-normal text-slate-300">(Optional)</span>
               </label>
               <input
                 id="brand-context-input"
@@ -341,40 +341,40 @@ export function UploadStage({
             </div>
 
             {/* Rubric preview strip */}
-            <div className="mt-6 pt-5 border-t border-white/10 grid grid-cols-2 sm:grid-cols-4 gap-4">
+            <div className="mt-6 pt-5 border-t border-sky-400/15 grid grid-cols-2 sm:grid-cols-4 gap-4">
               <div>
-                <p className="text-xs font-medium text-slate-400">Informational</p>
+                <p className="text-xs font-medium text-slate-300">Informational</p>
                 <p className="mt-0.5 font-mono text-sm font-semibold tabular-nums text-white">
                   2.00–5.00
                 </p>
-                <p className="text-[11px] text-slate-400 tabular-nums">Mean 3.40 · r=0.372</p>
+                <p className="text-[11px] text-slate-300 tabular-nums">Mean 3.40 · r=0.372</p>
               </div>
               <div>
-                <p className="text-xs font-medium text-slate-400">Entertainment</p>
+                <p className="text-xs font-medium text-slate-300">Entertainment</p>
                 <p className="mt-0.5 font-mono text-sm font-semibold tabular-nums text-white">
                   2.00–5.00
                 </p>
-                <p className="text-[11px] text-slate-400 tabular-nums">Mean 3.19 · r=0.463</p>
+                <p className="text-[11px] text-slate-300 tabular-nums">Mean 3.19 · r=0.463</p>
               </div>
               <div>
-                <p className="text-xs font-medium text-slate-400">Trendiness</p>
+                <p className="text-xs font-medium text-slate-300">Trendiness</p>
                 <p className="mt-0.5 font-mono text-sm font-semibold tabular-nums text-white">
                   2.00–5.00
                 </p>
-                <p className="text-[11px] text-slate-400 tabular-nums">Mean 3.43 · r=0.306</p>
+                <p className="text-[11px] text-slate-300 tabular-nums">Mean 3.43 · r=0.306</p>
               </div>
               <div>
-                <p className="text-xs font-medium text-slate-400">Relatable</p>
+                <p className="text-xs font-medium text-slate-300">Relatable</p>
                 <p className="mt-0.5 font-mono text-sm font-semibold tabular-nums text-white">
                   2.00–5.00
                 </p>
-                <p className="text-[11px] text-slate-400 tabular-nums">Mean 3.31 · r=0.554</p>
+                <p className="text-[11px] text-slate-300 tabular-nums">Mean 3.31 · r=0.554</p>
               </div>
             </div>
           </div>
 
-          <div className="mt-8 pt-5 border-t border-white/10 flex flex-wrap items-center justify-between gap-4">
-            <div className="text-xs text-slate-400">
+          <div className="mt-8 pt-5 border-t border-sky-400/15 flex flex-wrap items-center justify-between gap-4">
+            <div className="text-xs text-slate-300">
               <span>Each variable averaged across Interaction, Participation &amp; Sharing (8.00–20.00 total)</span>
             </div>
 

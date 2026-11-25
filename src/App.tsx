@@ -25,7 +25,12 @@ import { AccountSettingsView } from './components/AccountSettingsView.tsx';
 import { LandingPage } from './components/LandingPage.tsx';
 import { LegalPage } from './components/LegalPages.tsx';
 import { ActionButton, AlertBanner, ReeViewMark } from './components/ui/GlassPrimitives.tsx';
-import { PageTransition, ScrollDepthBackdrop, ScrollProgressBar } from './components/ui/MotionPrimitives.tsx';
+import {
+  MagneticWrapper,
+  PageTransition,
+  ScrollDepthBackdrop,
+  ScrollProgressBar,
+} from './components/ui/MotionPrimitives.tsx';
 
 export default function App() {
   const [authUser, setAuthUser] = useState<AuthUser | null>(null);
@@ -430,11 +435,11 @@ export default function App() {
           </PageTransition>
         ) : authLoading ? (
           <PageTransition key={topLevelKey} routeKey={topLevelKey}>
-            <div className="min-h-screen rv-atmosphere flex flex-col items-center justify-center p-6 gap-4">
+            <div className="min-h-screen rv-atmosphere flex flex-col items-center justify-center p-6 gap-4 text-slate-50">
               <div className="animate-pulse">
                 <ReeViewMark size="lg" />
               </div>
-              <p className="text-sm font-medium text-slate-300">Loading ReeView workspace...</p>
+              <p className="text-sm font-medium text-slate-200">Loading ReeView workspace...</p>
             </div>
           </PageTransition>
         ) : !authUser ? (
@@ -464,7 +469,7 @@ export default function App() {
           )
         ) : (
           <PageTransition key={topLevelKey} routeKey={topLevelKey}>
-            <div className="min-h-screen flex rv-atmosphere text-slate-100">
+            <div className="min-h-screen flex rv-atmosphere text-slate-50">
               <ScrollProgressBar />
               <ScrollDepthBackdrop />
               <Sidebar
@@ -495,14 +500,14 @@ export default function App() {
                       type="button"
                       onClick={() => setMobileMenuOpen(true)}
                       aria-label="Open navigation menu"
-                      className="lg:hidden flex h-10 w-10 items-center justify-center rounded-xl border border-slate-700/80 bg-slate-900 text-slate-200 hover:bg-slate-800 hover:text-white active:scale-95 transition-all duration-150 shrink-0 cursor-pointer"
+                      className="lg:hidden flex h-10 w-10 items-center justify-center rounded-xl border border-sky-400/25 bg-[#0e154a] text-slate-100 hover:bg-[#151f64] hover:text-white active:scale-95 transition-all duration-150 shrink-0 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400"
                     >
                       <Menu className="h-5 w-5" aria-hidden="true" />
                     </button>
 
                     <div className="flex items-center gap-2 text-sm min-w-0">
-                      <span className="text-slate-400 hidden sm:inline whitespace-nowrap">ReeView</span>
-                      <span className="text-slate-600 hidden sm:inline" aria-hidden="true">
+                      <span className="text-slate-300 hidden sm:inline whitespace-nowrap">ReeView</span>
+                      <span className="text-slate-500 hidden sm:inline" aria-hidden="true">
                         /
                       </span>
                       <span className="font-display font-semibold text-white truncate">
@@ -515,7 +520,7 @@ export default function App() {
                     {activeTab === 'evaluator' && (
                       <ol
                         aria-label="Evaluation workflow progress"
-                        className="hidden xl:flex items-center gap-2 text-xs text-slate-400"
+                        className="hidden xl:flex items-center gap-2 text-xs text-slate-300"
                       >
                         <li
                           className={`transition-colors duration-200 ${
@@ -524,15 +529,15 @@ export default function App() {
                         >
                           01 Upload
                         </li>
-                        <li aria-hidden="true" className="text-slate-600">→</li>
+                        <li aria-hidden="true" className="text-slate-500">→</li>
                         <li
                           className={`transition-colors duration-200 ${
-                            workflowStep === 2 ? 'text-indigo-300 font-semibold' : ''
+                            workflowStep === 2 ? 'text-cyan-300 font-semibold' : ''
                           }`}
                         >
                           02 AI Analysis
                         </li>
-                        <li aria-hidden="true" className="text-slate-600">→</li>
+                        <li aria-hidden="true" className="text-slate-500">→</li>
                         <li
                           className={`transition-colors duration-200 ${
                             workflowStep === 3 ? 'text-emerald-300 font-semibold' : ''
@@ -543,14 +548,17 @@ export default function App() {
                       </ol>
                     )}
 
-                    <ActionButton
-                      variant="primary"
-                      size="sm"
-                      onClick={handleStartNewEvaluation}
-                    >
-                      <PlusCircle className="h-3.5 w-3.5" aria-hidden="true" />
-                      <span>New Evaluation</span>
-                    </ActionButton>
+                    <MagneticWrapper>
+                      <ActionButton
+                        variant="primary"
+                        size="sm"
+                        className="hover:translate-y-0"
+                        onClick={handleStartNewEvaluation}
+                      >
+                        <PlusCircle className="h-3.5 w-3.5" aria-hidden="true" />
+                        <span>New Evaluation</span>
+                      </ActionButton>
+                    </MagneticWrapper>
                   </div>
                 </header>
 

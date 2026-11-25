@@ -54,6 +54,8 @@ const dimensionRatingSchema = {
   properties: {
     score: {
       type: Type.INTEGER,
+      minimum: 2,
+      maximum: 5,
       description:
         'Integer score from 2 to 5 strictly per the scoring guide: 5 = Very Effective, 4 = Effective, 3 = Moderately Effective, 2 = Less Effective.',
     },
@@ -138,15 +140,23 @@ const evaluationResponseSchema = {
         properties: {
           priority: {
             type: Type.STRING,
+            enum: ['High', 'Medium', 'Low'],
             description: 'Must be High, Medium, or Low.',
           },
           targetVariable: {
             type: Type.STRING,
+            enum: [
+              'Informational Content',
+              'Entertainment Content',
+              'Trendiness',
+              'Relatable Content',
+            ],
             description:
               'One of: Informational Content, Entertainment Content, Trendiness, Relatable Content.',
           },
           targetDimension: {
             type: Type.STRING,
+            enum: ['Interaction', 'Participation', 'Sharing', 'All Dimensions'],
             description: 'One of: Interaction, Participation, Sharing, All Dimensions.',
           },
           recommendation: {
@@ -179,11 +189,18 @@ const evaluationResponseSchema = {
         properties: {
           segment: {
             type: Type.STRING,
+            enum: [
+              'Business Owners',
+              'Gen Z Consumers',
+              'Social Media Content Creators',
+              'Marketing Professionals',
+            ],
             description:
               'Must cover each of: Business Owners, Gen Z Consumers, Social Media Content Creators, Marketing Professionals.',
           },
           predictedSentiment: {
             type: Type.STRING,
+            enum: ['Highly Receptive', 'Moderately Receptive', 'Mixed', 'Low Resonance'],
             description:
               'Must be one of: Highly Receptive, Moderately Receptive, Mixed, Low Resonance.',
           },
@@ -340,6 +357,14 @@ function normalizeDimension(
   return 'All Dimensions';
 }
 
+function normalizeTargetVariable(val: string): string {
+  const lower = (val || '').toLowerCase();
+  if (lower.includes('entertain')) return 'Entertainment Content';
+  if (lower.includes('trend')) return 'Trendiness';
+  if (lower.includes('relat')) return 'Relatable Content';
+  return 'Informational Content';
+}
+
 function normalizeSentiment(
   val: string
 ): AudienceSegmentPrediction['predictedSentiment'] {
@@ -470,7 +495,12 @@ D. RELATABLE CONTENT (Survey Mean: 3.31 | Brand Engagement Correlation: 0.554 Mo
   3: Has some relatable content but does not create a strong connection that encourages sharing.
   2: Does not reflect the interests or experiences of its target audience, giving them little reason to share it.
 
-Ground every score strictly in what is visible and audible in the video.`;
+Ground every score strictly in what is visible and audible in the video using the exact 2-5 criteria above:
+- Apply the Target Persona Focus as the "target audience" lens (especially for Relatable Content) and any Brand / Product Context to judge product clarity (especially for Informational Content), without overriding the rubric criteria.
+- Strengths MUST highlight the highest-scoring variables and engagement dimensions (ratings 4-5) demonstrated effectively in the Reel.
+- Areas for Improvement MUST explicitly identify the lowest-scoring characteristics and engagement dimensions from your matrix and explain the gap per the rubric.
+- Development Recommendations MUST target those lowest-scoring characteristics/dimensions with concrete creator or business-owner improvements grounded in the assessment criteria.
+- Methodological rule: Evaluate demonstrated content characteristics and their POTENTIAL to encourage Interaction, Participation, and Sharing. Frame classifications and expected impact as assessment potential based on the study's rubric—never assert proof of guaranteed causal effects on actual consumer behavior or sales.`;
 
   const promptText = `Evaluate this short-form marketing Reel (${videoMetadata.fileName}).
 Target Persona Focus: ${context.targetPersona}
@@ -684,7 +714,7 @@ Provide:
         : [],
       developmentRecommendations: (parsed.developmentRecommendations || []).map((rec) => ({
         priority: normalizePriority(rec.priority),
-        targetVariable: rec.targetVariable || 'Informational Content',
+        targetVariable: normalizeTargetVariable(rec.targetVariable),
         targetDimension: normalizeDimension(rec.targetDimension),
         recommendation: rec.recommendation || '',
         expectedImpact: rec.expectedImpact || '',

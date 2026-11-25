@@ -24,7 +24,7 @@ function getSentimentColor(sentiment: AudienceSegmentPrediction['predictedSentim
     case 'Highly Receptive':
       return 'text-emerald-300';
     case 'Moderately Receptive':
-      return 'text-indigo-300';
+      return 'text-cyan-300';
     case 'Mixed':
       return 'text-amber-300';
     case 'Low Resonance':
@@ -39,7 +39,7 @@ function getPriorityStyle(priority: 'High' | 'Medium' | 'Low'): string {
     case 'Medium':
       return 'text-amber-300';
     case 'Low':
-      return 'text-slate-300';
+      return 'text-slate-200';
   }
 }
 
@@ -71,7 +71,7 @@ export function InsightsAndStrategy({ evaluation }: InsightsAndStrategyProps) {
                   {strengths.map((item, idx) => (
                     <li
                       key={idx}
-                      className="text-sm text-slate-200 leading-relaxed pb-3 border-b border-white/8 last:border-b-0 last:pb-0"
+                      className="text-sm text-slate-100 leading-relaxed pb-3 border-b border-sky-400/15 last:border-b-0 last:pb-0"
                     >
                       {item}
                     </li>
@@ -94,7 +94,7 @@ export function InsightsAndStrategy({ evaluation }: InsightsAndStrategyProps) {
                   {areasForImprovement.map((item, idx) => (
                     <li
                       key={idx}
-                      className="text-sm text-slate-200 leading-relaxed pb-3 border-b border-white/8 last:border-b-0 last:pb-0"
+                      className="text-sm text-slate-100 leading-relaxed pb-3 border-b border-sky-400/15 last:border-b-0 last:pb-0"
                     >
                       {item}
                     </li>
@@ -111,41 +111,41 @@ export function InsightsAndStrategy({ evaluation }: InsightsAndStrategyProps) {
         <RevealSection>
           <GlassPanel as="section" ariaLabel="Development Recommendations" className="p-6 rv-card-hover">
             <div className="flex items-center gap-2 mb-4">
-              <ArrowUpRight className="h-4 w-4 text-indigo-400 shrink-0" aria-hidden="true" />
+              <ArrowUpRight className="h-4 w-4 text-cyan-400 shrink-0" aria-hidden="true" />
               <h3 className="font-display text-base font-semibold text-white">
                 Development Recommendations
               </h3>
             </div>
 
-            <div className="divide-y divide-white/8">
+            <div className="divide-y divide-sky-400/15">
               {developmentRecommendations.map((rec, idx) => (
                 <div key={idx} className="py-4 first:pt-1 last:pb-1">
                   <div className="flex flex-wrap items-center gap-2 text-xs mb-1.5">
                     <span className={`font-semibold ${getPriorityStyle(rec.priority)}`}>
                       {rec.priority} Priority
                     </span>
-                    <span className="text-slate-600" aria-hidden="true">
+                    <span className="text-slate-500" aria-hidden="true">
                       ·
                     </span>
-                    <span className="font-medium text-slate-200">{rec.targetVariable}</span>
-                    <span className="text-slate-600" aria-hidden="true">
+                    <span className="font-medium text-slate-100">{rec.targetVariable}</span>
+                    <span className="text-slate-500" aria-hidden="true">
                       ·
                     </span>
-                    <span className="font-medium text-teal-300">{rec.targetDimension}</span>
+                    <span className="font-medium text-cyan-300">{rec.targetDimension}</span>
                     {rec.timestampHint && (
                       <>
-                        <span className="text-slate-600" aria-hidden="true">
+                        <span className="text-slate-500" aria-hidden="true">
                           ·
                         </span>
-                        <span className="font-mono text-slate-400">{rec.timestampHint}</span>
+                        <span className="font-mono text-slate-300">{rec.timestampHint}</span>
                       </>
                     )}
                   </div>
                   <p className="text-sm font-medium text-white leading-relaxed">
                     {rec.recommendation}
                   </p>
-                  <p className="mt-1 text-xs text-slate-400">
-                    Expected Impact: <span className="text-slate-200">{rec.expectedImpact}</span>
+                  <p className="mt-1 text-xs text-slate-300">
+                    Expected Impact: <span className="text-slate-100">{rec.expectedImpact}</span>
                   </p>
                 </div>
               ))}
@@ -159,7 +159,7 @@ export function InsightsAndStrategy({ evaluation }: InsightsAndStrategyProps) {
         <RevealSection>
           <GlassPanel as="section" ariaLabel="Predicted Audience Response" className="p-6 rv-card-hover">
             <div className="flex items-center gap-2 mb-4">
-              <Users className="h-4 w-4 text-indigo-400 shrink-0" aria-hidden="true" />
+              <Users className="h-4 w-4 text-violet-300 shrink-0" aria-hidden="true" />
               <h3 className="font-display text-base font-semibold text-white">
                 Predicted Audience Response
               </h3>
@@ -169,7 +169,7 @@ export function InsightsAndStrategy({ evaluation }: InsightsAndStrategyProps) {
               {predictedAudienceResponse.map((aud, idx) => (
                 <div
                   key={idx}
-                  className="pt-4 border-t border-white/8 first:border-t-0 md:nth-2:border-t-0 md:first:pt-0 md:nth-2:pt-0"
+                  className="pt-4 border-t border-sky-400/15 first:border-t-0 md:nth-2:border-t-0 md:first:pt-0 md:nth-2:pt-0"
                 >
                   <div className="flex flex-wrap items-baseline justify-between gap-2">
                     <h4 className="font-display text-sm font-semibold text-white">{aud.segment}</h4>
@@ -177,9 +177,9 @@ export function InsightsAndStrategy({ evaluation }: InsightsAndStrategyProps) {
                       {aud.predictedSentiment}
                     </span>
                   </div>
-                  <p className="mt-1.5 text-sm text-slate-300 leading-relaxed">{aud.responseSummary}</p>
-                  <p className="mt-1.5 text-xs text-slate-400">
-                    Likely Action: <span className="font-medium text-slate-200">{aud.likelyAction}</span>
+                  <p className="mt-1.5 text-sm text-slate-200 leading-relaxed">{aud.responseSummary}</p>
+                  <p className="mt-1.5 text-xs text-slate-300">
+                    Likely Action: <span className="font-medium text-slate-100">{aud.likelyAction}</span>
                   </p>
                 </div>
               ))}
@@ -193,22 +193,22 @@ export function InsightsAndStrategy({ evaluation }: InsightsAndStrategyProps) {
         <RevealSection>
           <GlassPanel as="section" ariaLabel="Marketing Strategy Recommendations" className="p-6 rv-card-hover">
             <div className="flex items-center gap-2 mb-4">
-              <Compass className="h-4 w-4 text-indigo-400 shrink-0" aria-hidden="true" />
+              <Compass className="h-4 w-4 text-cyan-400 shrink-0" aria-hidden="true" />
               <h3 className="font-display text-base font-semibold text-white">
                 Marketing Strategy Recommendations
               </h3>
             </div>
 
-            <div className="divide-y divide-white/8">
+            <div className="divide-y divide-sky-400/15">
               {marketingStrategyRecommendations.map((item, idx) => (
                 <div key={idx} className="py-4 first:pt-1 last:pb-1">
-                  <p className="text-xs font-semibold text-indigo-300">{item.pillar}</p>
+                  <p className="text-xs font-semibold text-cyan-300">{item.pillar}</p>
                   <p className="mt-1 text-sm font-medium text-white">{item.recommendation}</p>
-                  <p className="mt-1.5 text-xs text-slate-300 leading-relaxed">
+                  <p className="mt-1.5 text-xs text-slate-200 leading-relaxed">
                     {item.researchRationale}
                   </p>
-                  <p className="mt-1.5 text-xs text-slate-400">
-                    Next Step: <span className="font-medium text-slate-200">{item.executionStep}</span>
+                  <p className="mt-1.5 text-xs text-slate-300">
+                    Next Step: <span className="font-medium text-slate-100">{item.executionStep}</span>
                   </p>
                 </div>
               ))}
@@ -217,12 +217,12 @@ export function InsightsAndStrategy({ evaluation }: InsightsAndStrategyProps) {
         </RevealSection>
       </ScrollSectionBridge>
 
-      {/* Page 24 Methodological Note */}
+      {/* Methodological Note */}
       <aside
         aria-label="Methodological Note"
-        className="rounded-2xl border border-white/10 bg-slate-900/70 px-5 py-4 flex items-start gap-3 text-xs text-slate-300 leading-relaxed"
+        className="rounded-2xl border border-sky-400/20 bg-[#0b1038]/85 px-5 py-4 flex items-start gap-3 text-xs text-slate-200 leading-relaxed"
       >
-        <Info className="h-4 w-4 text-slate-400 shrink-0 mt-0.5" aria-hidden="true" />
+        <Info className="h-4 w-4 text-cyan-300 shrink-0 mt-0.5" aria-hidden="true" />
         <p>
           <span className="font-semibold text-white">Important:</span> The rubric evaluates the
           content&apos;s demonstrated characteristics and its potential to encourage Interaction,

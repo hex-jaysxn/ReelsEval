@@ -18,7 +18,7 @@ function getEffectivenessTextClass(level: EffectivenessLevel): string {
     case 'Very Effective':
       return 'text-emerald-300';
     case 'Effective':
-      return 'text-indigo-300';
+      return 'text-cyan-300';
     case 'Moderately Effective':
       return 'text-amber-300';
     case 'Less Effective':
@@ -47,46 +47,50 @@ function VariableCard({ variable }: { variable: VariableAssessment }) {
             <div className="text-right shrink-0">
               <span className="font-mono text-base font-bold tabular-nums text-white">
                 {variable.averageScore.toFixed(2)}
-                <span className="text-xs font-normal text-slate-400">/5</span>
+                <span className="text-xs font-normal text-slate-300">/5</span>
               </span>
             </div>
           </div>
 
-          <p className="mt-1.5 text-[11px] text-slate-400 tabular-nums">
+          <p className="mt-1.5 text-[11px] text-slate-300 tabular-nums">
             Survey Mean {variable.surveyMean.toFixed(2)} · r = {variable.correlationLabel}
           </p>
 
           <div className="mt-3">
-            <ProgressBar value={variable.averageScore} max={5} colorClass="bg-indigo-500" />
+            <ProgressBar
+              value={variable.averageScore}
+              max={5}
+              colorClass="bg-gradient-to-r from-violet-500 via-blue-500 to-cyan-400"
+            />
           </div>
 
-          <p className="mt-3 text-xs text-slate-300 leading-relaxed">
+          <p className="mt-3 text-xs text-slate-200 leading-relaxed">
             {variable.effectivenessInterpretation}
           </p>
 
           {/* 3 Engagement Dimension Breakdowns (2-5) */}
-          <div className="mt-4 pt-3 border-t border-white/10 space-y-3">
+          <div className="mt-4 pt-3 border-t border-sky-400/15 space-y-3">
             {dimensions.map((dim) => (
               <div key={dim.name}>
                 <div className="flex items-center justify-between text-xs">
-                  <span className="font-medium text-slate-200">{dim.name}</span>
-                  <span className="font-mono font-semibold tabular-nums text-teal-300">
+                  <span className="font-medium text-slate-100">{dim.name}</span>
+                  <span className="font-mono font-semibold tabular-nums text-cyan-300">
                     {dim.data.score} / 5
                   </span>
                 </div>
-                <p className="mt-0.5 text-xs text-slate-400 leading-relaxed">{dim.data.rationale}</p>
+                <p className="mt-0.5 text-xs text-slate-300 leading-relaxed">{dim.data.rationale}</p>
               </div>
             ))}
           </div>
         </div>
 
         {variable.observedCues && variable.observedCues.length > 0 && (
-          <div className="mt-4 pt-3 border-t border-white/10">
-            <p className="text-[11px] font-semibold text-slate-400 mb-1.5">Observed Video Cues</p>
+          <div className="mt-4 pt-3 border-t border-sky-400/15">
+            <p className="text-[11px] font-semibold text-slate-300 mb-1.5">Observed Video Cues</p>
             <ul className="space-y-1">
               {variable.observedCues.map((cue, idx) => (
-                <li key={idx} className="text-xs text-slate-300 flex items-start gap-1.5">
-                  <span className="text-indigo-400 select-none" aria-hidden="true">
+                <li key={idx} className="text-xs text-slate-200 flex items-start gap-1.5">
+                  <span className="text-cyan-400 select-none" aria-hidden="true">
                     ·
                   </span>
                   <span>{cue}</span>
@@ -123,7 +127,7 @@ export function CategoryScoreCards({ evaluation }: CategoryScoreCardsProps) {
               <h3 className="font-display text-base font-semibold text-white">
                 Reels Content × Brand Engagement Matrix
               </h3>
-              <span className="font-mono text-xs text-slate-400 tabular-nums">
+              <span className="font-mono text-xs text-slate-300 tabular-nums">
                 Formula: (Interaction + Participation + Sharing) ÷ 3 · Scale 2–5
               </span>
             </div>
@@ -131,7 +135,7 @@ export function CategoryScoreCards({ evaluation }: CategoryScoreCardsProps) {
             <div className="overflow-x-auto">
               <table className="w-full text-left border-collapse">
                 <thead>
-                  <tr className="border-b border-white/12 text-xs font-semibold text-slate-400">
+                  <tr className="border-b border-sky-400/20 text-xs font-semibold text-slate-300">
                     <th className="py-2.5 pr-4">Reels Marketing Content Variable</th>
                     <th className="py-2.5 px-3 text-right">Interaction</th>
                     <th className="py-2.5 px-3 text-right">Participation</th>
@@ -140,25 +144,25 @@ export function CategoryScoreCards({ evaluation }: CategoryScoreCardsProps) {
                     <th className="py-2.5 pl-4">Effectiveness Level</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-white/8 text-sm">
+                <tbody className="divide-y divide-sky-400/10 text-sm">
                   {variableList.map((v) => (
                     <tr key={v.key} className="hover:bg-white/[0.04] transition-colors">
                       <td className="py-3 pr-4">
                         <span className="font-medium text-white">{v.label}</span>
-                        <span className="ml-2 text-xs text-slate-400 tabular-nums">
+                        <span className="ml-2 text-xs text-slate-300 tabular-nums">
                           (Mean {v.surveyMean.toFixed(2)})
                         </span>
                       </td>
-                      <td className="py-3 px-3 text-right font-mono tabular-nums text-slate-200">
+                      <td className="py-3 px-3 text-right font-mono tabular-nums text-slate-100">
                         {v.interaction.score}
                       </td>
-                      <td className="py-3 px-3 text-right font-mono tabular-nums text-slate-200">
+                      <td className="py-3 px-3 text-right font-mono tabular-nums text-slate-100">
                         {v.participation.score}
                       </td>
-                      <td className="py-3 px-3 text-right font-mono tabular-nums text-slate-200">
+                      <td className="py-3 px-3 text-right font-mono tabular-nums text-slate-100">
                         {v.sharing.score}
                       </td>
-                      <td className="py-3 px-3 text-right font-mono font-semibold tabular-nums text-indigo-300">
+                      <td className="py-3 px-3 text-right font-mono font-semibold tabular-nums text-cyan-300">
                         {v.averageScore.toFixed(2)}
                       </td>
                       <td className={`py-3 pl-4 text-xs font-semibold ${getEffectivenessTextClass(v.effectivenessLevel)}`}>
@@ -168,15 +172,15 @@ export function CategoryScoreCards({ evaluation }: CategoryScoreCardsProps) {
                   ))}
                 </tbody>
                 <tfoot>
-                  <tr className="border-t border-white/15 bg-slate-950/55 text-sm font-semibold">
+                  <tr className="border-t border-sky-400/20 bg-[#070b28]/80 text-sm font-semibold">
                     <td className="py-3 pr-4 text-white">Total / Dimension Means</td>
-                    <td className="py-3 px-3 text-right font-mono tabular-nums text-teal-300">
+                    <td className="py-3 px-3 text-right font-mono tabular-nums text-cyan-300">
                       {brandEngagementSummary.interactionMean.toFixed(2)}
                     </td>
-                    <td className="py-3 px-3 text-right font-mono tabular-nums text-teal-300">
+                    <td className="py-3 px-3 text-right font-mono tabular-nums text-cyan-300">
                       {brandEngagementSummary.participationMean.toFixed(2)}
                     </td>
-                    <td className="py-3 px-3 text-right font-mono tabular-nums text-teal-300">
+                    <td className="py-3 px-3 text-right font-mono tabular-nums text-cyan-300">
                       {brandEngagementSummary.sharingMean.toFixed(2)}
                     </td>
                     <td className="py-3 px-3 text-right font-mono tabular-nums text-white">
@@ -201,7 +205,7 @@ export function CategoryScoreCards({ evaluation }: CategoryScoreCardsProps) {
               Variable-by-Variable Assessment
             </h3>
           </ClipRevealHeading>
-          <span className="font-mono text-xs font-medium text-slate-400 tabular-nums">
+          <span className="font-mono text-xs font-medium text-slate-300 tabular-nums">
             4 Variables · 2.00–5.00 Each · {overallScore.toFixed(2)} / 20.00 Total
           </span>
         </div>

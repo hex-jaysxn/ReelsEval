@@ -41,7 +41,7 @@ export function LegalPage({
   });
 
   return (
-    <div className="min-h-screen rv-atmosphere text-slate-100 flex flex-col">
+    <div className="min-h-screen rv-atmosphere text-slate-50 flex flex-col">
       <ScrollProgressBar />
       <ScrollDepthBackdrop />
 
@@ -61,7 +61,7 @@ export function LegalPage({
                 e.preventDefault();
                 onNavigateRoute('main');
               }}
-              className="group flex items-center gap-2.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400 rounded-lg"
+              className="group flex items-center gap-2.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400 rounded-lg"
             >
               <ReeViewMark />
               <span className="font-display text-lg font-bold tracking-tight text-white whitespace-nowrap">
@@ -77,7 +77,7 @@ export function LegalPage({
                 e.preventDefault();
                 onNavigateRoute(isPrivacy ? 'terms' : 'privacy');
               }}
-              className="text-xs sm:text-sm font-medium text-slate-300 hover:text-white transition-colors rv-link-underline whitespace-nowrap"
+              className="text-xs sm:text-sm font-medium text-slate-200 hover:text-white transition-colors rv-link-underline whitespace-nowrap"
             >
               {isPrivacy ? 'Terms of Service' : 'Privacy Policy'}
             </a>
@@ -103,12 +103,12 @@ export function LegalPage({
               initial={isReduced ? { opacity: 1 } : { opacity: 0, y: 8 * profile.distanceScale }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: isReduced ? 0.01 : 0.3 * profile.durationScale, delay: 0.06, ease: RV_EASE }}
-              className="inline-flex items-center gap-2 rounded-lg border border-indigo-400/25 bg-indigo-500/10 px-3 py-1.5 text-xs font-medium text-indigo-200"
+              className="flex items-center gap-2.5 text-xs font-semibold uppercase tracking-[0.12em] text-cyan-300"
             >
               {isPrivacy ? (
-                <ShieldCheck className="h-3.5 w-3.5 text-indigo-400" aria-hidden="true" />
+                <ShieldCheck className="h-3.5 w-3.5 text-cyan-400" aria-hidden="true" />
               ) : (
-                <FileText className="h-3.5 w-3.5 text-indigo-400" aria-hidden="true" />
+                <FileText className="h-3.5 w-3.5 text-cyan-400" aria-hidden="true" />
               )}
               <span>ReeView Legal &amp; Compliance</span>
             </motion.div>
@@ -120,14 +120,14 @@ export function LegalPage({
             </ClipRevealHeading>
 
             <BlurRevealText delay={0.2}>
-              <p className="text-xs sm:text-sm text-slate-400">
-                Effective Date: <span className="text-slate-200 font-medium">{EFFECTIVE_DATE}</span>
+              <p className="text-xs sm:text-sm text-slate-300">
+                Effective Date: <span className="text-white font-medium">{EFFECTIVE_DATE}</span>
               </p>
             </BlurRevealText>
           </div>
 
           <ScaleMaskReveal delay={0.24}>
-            <GlassPanel className="p-6 sm:p-8 space-y-7 text-sm text-slate-300 leading-relaxed rv-card-hover">
+            <GlassPanel className="p-6 sm:p-8 space-y-7 text-sm text-slate-200 leading-relaxed rv-card-hover">
               {isPrivacy ? (
                 <>
                   <RevealSection as="section" delay={0.04} className="space-y-2">
@@ -138,14 +138,14 @@ export function LegalPage({
                       ReeView collects only the information needed to authenticate your workspace
                       and perform short-form video engagement evaluations:
                     </p>
-                    <ul className="list-disc pl-5 space-y-1.5 text-slate-300">
+                    <ul className="list-disc pl-5 space-y-1.5 text-slate-200">
                       <li>
                         <strong className="text-white">Account &amp; Profile Details:</strong> Your
                         name, email address, and optional profile avatar URL provided when you sign
                         up with Email OTP or sign in via Google OpenID Connect (basic{' '}
-                        <code className="font-mono text-xs text-indigo-300">openid</code>,{' '}
-                        <code className="font-mono text-xs text-indigo-300">email</code>, and{' '}
-                        <code className="font-mono text-xs text-indigo-300">profile</code> scopes).
+                        <code className="font-mono text-xs text-cyan-300">openid</code>,{' '}
+                        <code className="font-mono text-xs text-cyan-300">email</code>, and{' '}
+                        <code className="font-mono text-xs text-cyan-300">profile</code> scopes).
                       </li>
                       <li>
                         <strong className="text-white">Uploaded Reels &amp; Context:</strong>{' '}
@@ -179,7 +179,7 @@ export function LegalPage({
                     <p>
                       ReeView stores HTTP-only session cookies (and signed session tokens when
                       needed) to keep you signed in securely. Passwords are hashed using salted{' '}
-                      <code className="font-mono text-xs text-indigo-300">scrypt</code>, and Email
+                      <code className="font-mono text-xs text-cyan-300">scrypt</code>, and Email
                       OTP verification codes are single-use, time-limited, and stored as salted
                       HMAC-SHA256 digests.
                     </p>
@@ -204,7 +204,7 @@ export function LegalPage({
                       For privacy inquiries or account assistance, contact the ReeView team at{' '}
                       <a
                         href="mailto:jaysonapoya06@gmail.com"
-                        className="text-indigo-300 hover:text-indigo-200 underline underline-offset-4"
+                        className="text-cyan-300 hover:text-cyan-200 underline underline-offset-4"
                       >
                         jaysonapoya06@gmail.com
                       </a>
@@ -268,7 +268,7 @@ export function LegalPage({
                       Questions regarding these Terms of Service can be directed to{' '}
                       <a
                         href="mailto:jaysonapoya06@gmail.com"
-                        className="text-indigo-300 hover:text-indigo-200 underline underline-offset-4"
+                        className="text-cyan-300 hover:text-cyan-200 underline underline-offset-4"
                       >
                         jaysonapoya06@gmail.com
                       </a>
@@ -282,12 +282,12 @@ export function LegalPage({
         </div>
       </main>
 
-      <footer className="border-t border-white/8 bg-[#050811]/80">
-        <div className="max-w-5xl mx-auto px-4 sm:px-8 py-6 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-slate-400">
+      <footer className="border-t border-sky-400/15 bg-[#05071b]/90">
+        <div className="max-w-5xl mx-auto px-4 sm:px-8 py-6 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-slate-300">
           <div className="group flex items-center gap-2.5">
             <ReeViewMark size="sm" />
             <span className="font-display font-semibold text-white">ReeView</span>
-            <span aria-hidden="true">·</span>
+            <span className="text-slate-500" aria-hidden="true">·</span>
             <span>AI Reels Marketing Content Effectiveness Platform</span>
           </div>
           <div className="flex items-center gap-5">
@@ -297,7 +297,7 @@ export function LegalPage({
                 e.preventDefault();
                 onNavigateRoute('privacy');
               }}
-              className={`transition-colors rv-link-underline ${isPrivacy ? 'text-white font-semibold' : 'hover:text-slate-200'}`}
+              className={`transition-colors rv-link-underline ${isPrivacy ? 'text-white font-semibold' : 'hover:text-white'}`}
             >
               Privacy Policy
             </a>
@@ -307,14 +307,14 @@ export function LegalPage({
                 e.preventDefault();
                 onNavigateRoute('terms');
               }}
-              className={`transition-colors rv-link-underline ${!isPrivacy ? 'text-white font-semibold' : 'hover:text-slate-200'}`}
+              className={`transition-colors rv-link-underline ${!isPrivacy ? 'text-white font-semibold' : 'hover:text-white'}`}
             >
               Terms of Service
             </a>
             <button
               type="button"
               onClick={() => onNavigateAuth('login')}
-              className="hover:text-slate-200 transition-colors rv-link-underline cursor-pointer"
+              className="hover:text-white transition-colors rv-link-underline cursor-pointer"
             >
               Sign In
             </button>

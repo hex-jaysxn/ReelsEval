@@ -183,18 +183,18 @@ export function AccountSettingsView({
             <img
               src={user.avatarUrl}
               alt={user.name}
-              className="h-12 w-12 rounded-full border border-white/20 object-cover"
+              className="h-12 w-12 rounded-full border border-cyan-400/35 object-cover"
               referrerPolicy="no-referrer"
             />
           ) : (
-            <div className="h-12 w-12 rounded-full bg-indigo-500/20 border border-indigo-400/35 flex items-center justify-center text-indigo-200 font-display font-bold text-base">
+            <div className="h-12 w-12 rounded-full bg-violet-500/20 border border-cyan-400/35 flex items-center justify-center text-slate-100 font-display font-bold text-base">
               {user.name.slice(0, 2).toUpperCase()}
             </div>
           )}
           <div>
             <h1 className="font-display text-lg font-bold text-white">{user.name}</h1>
-            <p className="text-sm text-slate-300">{user.email}</p>
-            <p className="mt-0.5 text-xs text-slate-400">
+            <p className="text-sm text-slate-200">{user.email}</p>
+            <p className="mt-0.5 text-xs text-slate-300">
               {user.emailVerified ? 'Verified email' : 'Unverified email'} · Member since{' '}
               {new Date(user.createdAt).toLocaleDateString()}
             </p>
@@ -215,23 +215,23 @@ export function AccountSettingsView({
       {/* Connected Authentication Providers */}
       <GlassPanel className="p-6 space-y-5 rv-card-hover">
         <div className="flex items-center gap-2.5">
-          <ShieldCheck className="h-4 w-4 text-indigo-400 shrink-0" aria-hidden="true" />
+          <ShieldCheck className="h-4 w-4 text-cyan-400 shrink-0" aria-hidden="true" />
           <div>
             <h2 className="font-display text-base font-semibold text-white">
               Connected Authentication Providers
             </h2>
-            <p className="text-xs text-slate-400">
+            <p className="text-xs text-slate-300">
               Manage how you sign in to ReeView. Matching verified emails link automatically.
             </p>
           </div>
         </div>
 
-        <div className="divide-y divide-white/10 border border-white/10 rounded-xl bg-slate-950/45">
+        <div className="divide-y divide-sky-400/15 border border-sky-400/20 rounded-xl bg-[#070b28]/75">
           {/* Email & Password */}
           <div className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div>
               <p className="text-sm font-semibold text-white">Email &amp; Password</p>
-              <p className="text-xs text-slate-400">
+              <p className="text-xs text-slate-300">
                 {user.hasPassword
                   ? `Password enabled for ${user.email}`
                   : 'No password set yet (signed up with external provider)'}
@@ -246,7 +246,7 @@ export function AccountSettingsView({
           <div className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div>
               <p className="text-sm font-semibold text-white">Google</p>
-              <p className="text-xs text-slate-400">
+              <p className="text-xs text-slate-300">
                 {googleConnection
                   ? `Connected as ${googleConnection.email || user.email}`
                   : 'Quick sign-in with your Google account'}
@@ -274,15 +274,14 @@ export function AccountSettingsView({
               </ActionButton>
             )}
           </div>
-
         </div>
 
         {providerAvailability && !providerAvailability.googleConfigured && (
-          <div className="rounded-xl bg-slate-950/65 border border-white/10 p-4 text-xs text-slate-300 space-y-1.5">
+          <div className="rounded-xl bg-[#070b28]/85 border border-sky-400/20 p-4 text-xs text-slate-200 space-y-1.5">
             <p className="font-semibold text-white">OAuth Callback &amp; Environment Reference</p>
             <p>
               Google Callback URL:{' '}
-              <code className="font-mono text-indigo-300 break-all">
+              <code className="font-mono text-cyan-300 break-all">
                 {providerAvailability.callbackUrls.google}
               </code>
             </p>
@@ -295,11 +294,11 @@ export function AccountSettingsView({
         <GlassPanel className="p-6 rv-card-hover">
           <form onSubmit={handleSaveProfile} className="space-y-4">
             <div className="flex items-center gap-2">
-              <UserIcon className="h-4 w-4 text-indigo-400" aria-hidden="true" />
+              <UserIcon className="h-4 w-4 text-cyan-400" aria-hidden="true" />
               <h3 className="font-display text-base font-semibold text-white">Profile Details</h3>
             </div>
             <div>
-              <label htmlFor="settings-name" className="block text-xs font-medium text-slate-300 mb-1.5">
+              <label htmlFor="settings-name" className="block text-xs font-medium text-slate-200 mb-1.5">
                 Display Name
               </label>
               <input
@@ -325,7 +324,7 @@ export function AccountSettingsView({
         <GlassPanel className="p-6 rv-card-hover">
           <form onSubmit={handlePasswordSave} className="space-y-4">
             <div className="flex items-center gap-2">
-              <KeyRound className="h-4 w-4 text-indigo-400" aria-hidden="true" />
+              <KeyRound className="h-4 w-4 text-cyan-400" aria-hidden="true" />
               <h3 className="font-display text-base font-semibold text-white">
                 {user.hasPassword ? 'Change Password' : 'Set Account Password'}
               </h3>
@@ -335,7 +334,7 @@ export function AccountSettingsView({
               <div>
                 <label
                   htmlFor="settings-current-password"
-                  className="block text-xs font-medium text-slate-300 mb-1.5"
+                  className="block text-xs font-medium text-slate-200 mb-1.5"
                 >
                   Current Password
                 </label>
@@ -353,7 +352,7 @@ export function AccountSettingsView({
             <div>
               <label
                 htmlFor="settings-new-password"
-                className="block text-xs font-medium text-slate-300 mb-1.5"
+                className="block text-xs font-medium text-slate-200 mb-1.5"
               >
                 New Password
               </label>
@@ -372,7 +371,7 @@ export function AccountSettingsView({
             <div>
               <label
                 htmlFor="settings-confirm-password"
-                className="block text-xs font-medium text-slate-300 mb-1.5"
+                className="block text-xs font-medium text-slate-200 mb-1.5"
               >
                 Confirm Password
               </label>

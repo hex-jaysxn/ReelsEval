@@ -6,29 +6,37 @@
   --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
 }
 
+/*
+ * ReeView Brand Design System — Derived from Official ReeView Logo
+ * Ground: Deep Midnight Royal Indigo (#060922 / #111562)
+ * Structural Surfaces: Layered Cobalt-Indigo (#0B1038 / #0E154A)
+ * Precision Accents: Sculpted White (#F8FAFC) + Kinetic Violet-to-Cyan (#8B5CF6 -> #2563EB -> #06B6D4)
+ */
 :root {
-  --rv-bg-base: #f4f7fb;
-  --rv-bg-elevated: #ffffff;
-  --rv-glass-primary-bg: rgba(255, 255, 255, 0.82);
-  --rv-glass-elevated-bg: rgba(255, 255, 255, 0.95);
-  --rv-glass-nav-bg: rgba(255, 255, 255, 0.86);
-  --rv-glass-border: rgba(14, 165, 233, 0.22);
-  --rv-glass-border-strong: rgba(99, 102, 241, 0.32);
-  --rv-glass-highlight: inset 0 1px 2px 0 rgba(255, 255, 255, 0.95), inset 0 0 20px rgba(14, 165, 233, 0.04);
-  --rv-shadow-glass: 0 20px 45px -12px rgba(15, 23, 42, 0.09), 0 4px 14px -2px rgba(14, 165, 233, 0.08);
-  --rv-shadow-elevated: 0 28px 60px -16px rgba(15, 23, 42, 0.14), 0 0 0 1px rgba(14, 165, 233, 0.15);
-  --rv-text-primary: #090d16;
-  --rv-text-secondary: #1e293b;
-  --rv-text-muted: #475569;
-  --rv-accent: #0284c7;
-  --rv-accent-teal: #0d9488;
+  --rv-bg-base: #060922;
+  --rv-bg-logo: #111562;
+  --rv-bg-elevated: #0d1342;
+  --rv-surface-primary: rgba(12, 17, 56, 0.84);
+  --rv-surface-elevated: rgba(16, 22, 70, 0.94);
+  --rv-surface-nav: rgba(6, 9, 34, 0.84);
+  --rv-border-subtle: rgba(56, 189, 248, 0.16);
+  --rv-border-strong: rgba(99, 102, 241, 0.34);
+  --rv-surface-highlight: inset 0 1px 0 0 rgba(186, 230, 253, 0.14);
+  --rv-shadow-surface: 0 18px 44px -16px rgba(2, 4, 20, 0.72), 0 0 0 1px rgba(56, 189, 248, 0.06);
+  --rv-shadow-elevated: 0 26px 56px -18px rgba(2, 4, 20, 0.82), 0 0 32px -12px rgba(37, 99, 235, 0.22);
+  --rv-text-primary: #f8fafc;
+  --rv-text-secondary: #cbd5e1;
+  --rv-text-muted: #94a3b8;
+  --rv-accent-violet: #8b5cf6;
+  --rv-accent-cobalt: #3b82f6;
+  --rv-accent-cyan: #06b6d4;
   --rv-ease: cubic-bezier(0.16, 1, 0.3, 1);
   --rv-ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 @layer base {
   html {
-    color-scheme: light;
+    color-scheme: dark;
     scroll-behavior: smooth;
   }
 
@@ -44,28 +52,16 @@
   }
 }
 
-@keyframes rv-liquid-drift {
-  0% {
-    transform: translate(0px, 0px) scale(1);
-  }
-  50% {
-    transform: translate(25px, -35px) scale(1.06);
-  }
-  100% {
-    transform: translate(-15px, 20px) scale(0.96);
-  }
-}
-
-/* Light Liquid Digital Environment */
+/* Midnight Royal Indigo Precision Atmosphere */
 .rv-atmosphere {
   position: relative;
   isolation: isolate;
   overflow-x: clip;
   background-color: var(--rv-bg-base);
   background-image:
-    radial-gradient(64rem 42rem at 10% -8%, rgba(56, 189, 248, 0.18), transparent 60%),
-    radial-gradient(56rem 40rem at 92% 12%, rgba(129, 140, 248, 0.15), transparent 58%),
-    radial-gradient(48rem 36rem at 50% 100%, rgba(45, 212, 191, 0.12), transparent 65%);
+    radial-gradient(62rem 38rem at 12% -6%, rgba(139, 92, 246, 0.16), transparent 60%),
+    radial-gradient(54rem 38rem at 88% 8%, rgba(6, 182, 212, 0.14), transparent 58%),
+    radial-gradient(50rem 36rem at 50% 100%, rgba(37, 99, 235, 0.14), transparent 64%);
 }
 
 .rv-atmosphere::before {
@@ -75,56 +71,44 @@
   z-index: -2;
   pointer-events: none;
   background-image:
-    radial-gradient(46rem 32rem at 22% 18%, rgba(14, 165, 233, 0.12), transparent 62%),
-    radial-gradient(42rem 30rem at 78% 28%, rgba(99, 102, 241, 0.09), transparent 60%),
-    radial-gradient(38rem 28rem at 45% 85%, rgba(20, 184, 166, 0.08), transparent 64%);
+    linear-gradient(to right, rgba(56, 189, 248, 0.03) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(99, 102, 241, 0.03) 1px, transparent 1px);
+  background-size: 64px 64px;
+  mask-image: radial-gradient(ellipse 85% 65% at 50% 18%, black 35%, transparent 100%);
+  -webkit-mask-image: radial-gradient(ellipse 85% 65% at 50% 18%, black 35%, transparent 100%);
 }
 
-.rv-atmosphere::after {
-  content: '';
-  position: absolute;
-  top: -140px;
-  left: 15%;
-  width: 700px;
-  height: 380px;
-  z-index: -1;
-  pointer-events: none;
-  background: radial-gradient(closest-side, rgba(56, 189, 248, 0.2), transparent 75%);
-  animation: rv-liquid-drift 16s ease-in-out infinite alternate;
-  opacity: 0.85;
-}
-
-/* Glass Hierarchy for Light Liquid UI */
+/* Layered Cobalt-Indigo Surface System */
 .rv-glass-primary {
-  background: var(--rv-glass-primary-bg);
-  backdrop-filter: blur(16px) saturate(160%);
-  -webkit-backdrop-filter: blur(16px) saturate(160%);
-  border: 1px solid var(--rv-glass-border);
-  box-shadow: var(--rv-glass-highlight), var(--rv-shadow-glass);
+  background: var(--rv-surface-primary);
+  backdrop-filter: blur(14px) saturate(145%);
+  -webkit-backdrop-filter: blur(14px) saturate(145%);
+  border: 1px solid var(--rv-border-subtle);
+  box-shadow: var(--rv-surface-highlight), var(--rv-shadow-surface);
   transition: border-color 200ms var(--rv-ease), box-shadow 200ms var(--rv-ease), transform 200ms var(--rv-ease);
 }
 
 .rv-glass-elevated {
-  background: var(--rv-glass-elevated-bg);
-  backdrop-filter: blur(20px) saturate(175%);
-  -webkit-backdrop-filter: blur(20px) saturate(175%);
-  border: 1px solid var(--rv-glass-border-strong);
-  box-shadow: var(--rv-glass-highlight), var(--rv-shadow-elevated);
+  background: var(--rv-surface-elevated);
+  backdrop-filter: blur(18px) saturate(155%);
+  -webkit-backdrop-filter: blur(18px) saturate(155%);
+  border: 1px solid var(--rv-border-strong);
+  box-shadow: var(--rv-surface-highlight), var(--rv-shadow-elevated);
   transition: border-color 200ms var(--rv-ease), box-shadow 200ms var(--rv-ease);
 }
 
 .rv-glass-nav {
-  background: var(--rv-glass-nav-bg);
-  backdrop-filter: blur(18px) saturate(165%);
-  -webkit-backdrop-filter: blur(18px) saturate(165%);
-  border-color: var(--rv-glass-border);
-  transition: background-color 240ms var(--rv-ease), border-color 240ms var(--rv-ease), box-shadow 240ms var(--rv-ease);
+  background: var(--rv-surface-nav);
+  backdrop-filter: blur(16px) saturate(150%);
+  -webkit-backdrop-filter: blur(16px) saturate(150%);
+  border-color: var(--rv-border-subtle);
+  transition: background-color 220ms var(--rv-ease), border-color 220ms var(--rv-ease), box-shadow 220ms var(--rv-ease);
 }
 
 .rv-glass-nav-scrolled {
-  background: rgba(255, 255, 255, 0.92);
-  border-color: rgba(14, 165, 233, 0.25);
-  box-shadow: 0 12px 32px -12px rgba(15, 23, 42, 0.12);
+  background: rgba(6, 9, 34, 0.94);
+  border-color: rgba(56, 189, 248, 0.24);
+  box-shadow: 0 12px 32px -12px rgba(2, 4, 20, 0.78);
 }
 
 .rv-card-hover {
@@ -133,14 +117,24 @@
 
 @media (hover: hover) and (pointer: fine) {
   .rv-card-hover:hover {
-    transform: translateY(-3px);
-    border-color: rgba(14, 165, 233, 0.4);
-    box-shadow: var(--rv-glass-highlight), 0 24px 50px -16px rgba(15, 23, 42, 0.14), 0 0 0 1px rgba(14, 165, 233, 0.2);
+    transform: translateY(-2px);
+    border-color: rgba(56, 189, 248, 0.36);
+    box-shadow: var(--rv-surface-highlight), 0 22px 48px -16px rgba(2, 4, 20, 0.85), 0 0 24px -10px rgba(6, 182, 212, 0.2);
   }
 }
 
 .rv-card-hover:active {
-  transform: scale(0.992);
+  transform: scale(0.994);
+}
+
+/* Kinetic Checkmark Gradient CTA Fill */
+.rv-cta-gradient {
+  background: linear-gradient(105deg, #7c3aed 0%, #2563eb 54%, #06b6d4 100%);
+  color: #ffffff;
+}
+
+.rv-cta-gradient:hover:not(:disabled) {
+  background: linear-gradient(105deg, #8b5cf6 0%, #3b82f6 52%, #22d3ee 100%);
 }
 
 .rv-btn-sheen {
@@ -152,7 +146,7 @@
   content: '';
   position: absolute;
   inset: 0;
-  background: linear-gradient(110deg, transparent 20%, rgba(255, 255, 255, 0.16) 50%, transparent 80%);
+  background: linear-gradient(110deg, transparent 22%, rgba(255, 255, 255, 0.2) 50%, transparent 78%);
   transform: translateX(-120%);
   transition: transform 520ms var(--rv-ease);
   pointer-events: none;
@@ -176,7 +170,7 @@
   bottom: -2px;
   height: 1.5px;
   border-radius: 999px;
-  background: linear-gradient(90deg, rgba(129, 140, 248, 0.9), rgba(56, 189, 248, 0.9));
+  background: linear-gradient(90deg, #8b5cf6, #06b6d4);
   transform: scaleX(0);
   transform-origin: left center;
   transition: transform 220ms var(--rv-ease);
@@ -187,12 +181,12 @@
   transform: scaleX(1);
 }
 
-/* Light Liquid Form & Interactive Controls */
+/* High-Contrast Midnight Form Controls */
 .rv-input-solid {
-  background-color: rgba(255, 255, 255, 0.9);
-  border: 1px solid rgba(14, 165, 233, 0.25);
-  color: #0f172a;
-  transition: border-color 160ms var(--rv-ease), box-shadow 160ms var(--rv-ease), background-color 160ms var(--rv-ease), transform 160ms var(--rv-ease);
+  background-color: rgba(8, 12, 42, 0.92);
+  border: 1px solid rgba(56, 189, 248, 0.24);
+  color: #f8fafc;
+  transition: border-color 160ms var(--rv-ease), box-shadow 160ms var(--rv-ease), background-color 160ms var(--rv-ease);
 }
 
 .rv-input-solid::placeholder {
@@ -200,26 +194,25 @@
 }
 
 .rv-input-solid:hover:not(:disabled):not(:focus) {
-  border-color: rgba(14, 165, 233, 0.45);
+  border-color: rgba(56, 189, 248, 0.48);
 }
 
 .rv-input-solid:focus {
   outline: none;
-  border-color: #0284c7;
-  box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.22);
-  background-color: #ffffff;
+  border-color: #22d3ee;
+  box-shadow: 0 0 0 3px rgba(6, 182, 212, 0.24);
+  background-color: #0b1038;
 }
 
 .rv-input-solid option {
-  background-color: #ffffff;
-  color: #0f172a;
+  background-color: #0b1038;
+  color: #f8fafc;
 }
 
 .tabular-nums {
   font-variant-numeric: tabular-nums;
 }
 
-/* Subtle Entrance & Skeleton Shimmer */
 @keyframes rv-fade-up {
   from {
     opacity: 0;
@@ -257,9 +250,9 @@
   background: linear-gradient(
     90deg,
     transparent 0%,
-    rgba(148, 163, 184, 0.12) 45%,
-    rgba(226, 232, 240, 0.16) 50%,
-    rgba(148, 163, 184, 0.12) 55%,
+    rgba(56, 189, 248, 0.08) 45%,
+    rgba(139, 92, 246, 0.14) 50%,
+    rgba(56, 189, 248, 0.08) 55%,
     transparent 100%
   );
   animation: rv-shimmer 1.6s var(--rv-ease-in-out) infinite;
@@ -270,8 +263,6 @@
     scroll-behavior: auto !important;
   }
 
-  .rv-atmosphere::before,
-  .rv-atmosphere::after,
   .rv-skeleton-shimmer::after {
     animation: none !important;
   }

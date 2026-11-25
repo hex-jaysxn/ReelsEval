@@ -39,30 +39,30 @@ export function ReportActions({ evaluation }: ReportActionsProps) {
   return (
     <GlassPanel className="px-6 py-4 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 rv-animate-in rv-card-hover">
       <div className="min-w-0 space-y-1">
-        <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-slate-300">
+        <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-slate-200">
           <span className="font-semibold text-white truncate max-w-[260px]">
             {evaluation.videoMetadata.fileName}
           </span>
-          <span className="text-slate-600" aria-hidden="true">
+          <span className="text-slate-500" aria-hidden="true">
             ·
           </span>
           <span className="tabular-nums">{formatBytes(evaluation.videoMetadata.fileSizeBytes)}</span>
-          <span className="text-slate-600" aria-hidden="true">
+          <span className="text-slate-500" aria-hidden="true">
             ·
           </span>
           <span className="tabular-nums">{formatDuration(evaluation.videoMetadata.durationSeconds)}</span>
         </div>
 
-        <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-slate-400">
+        <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-slate-300">
           <span>{evaluation.context.targetPersona}</span>
-          <span className="text-slate-600" aria-hidden="true">
+          <span className="text-slate-500" aria-hidden="true">
             ·
           </span>
           <span>{evaluation.context.campaignObjective}</span>
-          <span className="text-slate-600" aria-hidden="true">
+          <span className="text-slate-500" aria-hidden="true">
             ·
           </span>
-          <span className="font-mono text-indigo-300">{evaluation.modelUsed}</span>
+          <span className="font-mono text-cyan-300">{evaluation.modelUsed}</span>
         </div>
       </div>
 

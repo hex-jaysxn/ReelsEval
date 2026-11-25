@@ -36,24 +36,24 @@ export function ProcessingState({ fileName }: ProcessingStateProps) {
         <div aria-live="polite" className="max-w-2xl space-y-5">
           <div className="flex items-center justify-between gap-4">
             <div className="flex items-center gap-3">
-              <Loader2 className="h-5 w-5 text-indigo-400 animate-spin shrink-0" aria-hidden="true" />
+              <Loader2 className="h-5 w-5 text-cyan-400 animate-spin shrink-0" aria-hidden="true" />
               <h2 className="font-display text-lg font-semibold text-white">
                 Running Multimodal Video Analysis
               </h2>
             </div>
-            <span className="font-mono text-xs text-indigo-300 tabular-nums">
+            <span className="font-mono text-xs text-cyan-300 tabular-nums">
               Step {activeStep + 1} / {STEPS.length}
             </span>
           </div>
 
-          <p className="text-sm text-slate-300">
+          <p className="text-sm text-slate-200">
             Evaluating <span className="font-medium text-white">{fileName}</span> with Google Gemini Free Tier. Larger clips may take 15–30 seconds.
           </p>
 
           <ProgressBar
             value={activeStep + 1}
             max={STEPS.length}
-            colorClass="bg-gradient-to-r from-indigo-500 to-sky-400"
+            colorClass="bg-gradient-to-r from-violet-500 via-blue-500 to-cyan-400"
             label="Analysis progress"
           />
 
@@ -66,10 +66,10 @@ export function ProcessingState({ fileName }: ProcessingStateProps) {
                   <span
                     className={`flex h-6 w-6 items-center justify-center rounded-full text-xs font-mono shrink-0 transition-colors duration-200 ${
                       done
-                        ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-400/40'
+                        ? 'bg-emerald-500/20 text-emerald-200 border border-emerald-400/45'
                         : current
-                          ? 'bg-indigo-500/25 text-indigo-200 border border-indigo-400/45'
-                          : 'bg-slate-900 text-slate-500 border border-slate-700'
+                          ? 'bg-cyan-500/20 text-cyan-200 border border-cyan-400/50'
+                          : 'bg-[#090e30] text-slate-300 border border-sky-400/20'
                     }`}
                   >
                     {done ? (
@@ -88,10 +88,10 @@ export function ProcessingState({ fileName }: ProcessingStateProps) {
                   <span
                     className={`transition-colors duration-200 ${
                       done
-                        ? 'text-slate-400'
+                        ? 'text-slate-300'
                         : current
                           ? 'font-medium text-white'
-                          : 'text-slate-500'
+                          : 'text-slate-400'
                     }`}
                   >
                     {label}

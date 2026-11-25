@@ -19,7 +19,6 @@ export function ScoreGauge({ evaluation }: ScoreGaugeProps) {
   const maxScore = 20;
   const ratio = Math.max(0, Math.min(1, overallScore / maxScore));
 
-  // SVG Arc geometry
   const radius = 64;
   const circumference = 2 * Math.PI * radius;
   const strokeDashoffset = circumference * (1 - ratio);
@@ -30,8 +29,8 @@ export function ScoreGauge({ evaluation }: ScoreGaugeProps) {
       labelColor: 'text-emerald-300',
     },
     moderate: {
-      stroke: '#818CF8',
-      labelColor: 'text-indigo-300',
+      stroke: '#22D3EE',
+      labelColor: 'text-cyan-300',
     },
     caution: {
       stroke: '#FBBF24',
@@ -90,13 +89,13 @@ export function ScoreGauge({ evaluation }: ScoreGaugeProps) {
                 <span className="font-mono text-2xl font-bold tracking-tight text-white tabular-nums">
                   <AnimatedNumber value={overallScore} decimals={2} duration={0.7} />
                 </span>
-                <span className="font-mono text-xs text-slate-400 tabular-nums">out of 20</span>
+                <span className="font-mono text-xs text-slate-300 tabular-nums">out of 20</span>
               </div>
             </div>
 
             <div className="md:hidden">
               <StatusBadge tone={scoreTier.tone}>{scoreTier.level}</StatusBadge>
-              <p className="mt-2 text-xs text-slate-400">Scale: 8.00–20.00</p>
+              <p className="mt-2 text-xs text-slate-300">Scale: 8.00–20.00</p>
             </div>
           </div>
 
@@ -106,42 +105,42 @@ export function ScoreGauge({ evaluation }: ScoreGaugeProps) {
               <h2 className={`font-display text-xl font-bold ${toneStyles.labelColor}`}>
                 {scoreTier.level}
               </h2>
-              <span className="text-slate-600" aria-hidden="true">
+              <span className="text-slate-500" aria-hidden="true">
                 ·
               </span>
-              <span className="text-xs font-medium text-slate-300 tabular-nums">
+              <span className="text-xs font-medium text-slate-200 tabular-nums">
                 Overall Effectiveness ({overallScore.toFixed(2)} / 20.00 · Rubric Range 8.00–20.00)
               </span>
             </div>
 
-            <p className="mt-2.5 text-sm text-slate-200 leading-relaxed">{executiveSummary}</p>
-            <p className="mt-1.5 text-xs text-slate-400">{scoreTier.summary}</p>
+            <p className="mt-2.5 text-sm text-slate-100 leading-relaxed">{executiveSummary}</p>
+            <p className="mt-1.5 text-xs text-slate-300">{scoreTier.summary}</p>
 
-            <div className="mt-6 pt-5 border-t border-white/10 grid grid-cols-2 sm:grid-cols-4 gap-5">
+            <div className="mt-6 pt-5 border-t border-sky-400/15 grid grid-cols-2 sm:grid-cols-4 gap-5">
               <div>
-                <p className="text-xs font-medium text-slate-400">Interaction Mean</p>
+                <p className="text-xs font-medium text-slate-300">Interaction Mean</p>
                 <p className="mt-1 font-mono text-lg font-semibold text-white tabular-nums">
                   <AnimatedNumber value={brandEngagementSummary.interactionMean} decimals={2} duration={0.55} />{' '}
-                  <span className="text-xs font-normal text-slate-400">/ 5</span>
+                  <span className="text-xs font-normal text-slate-300">/ 5</span>
                 </p>
               </div>
               <div>
-                <p className="text-xs font-medium text-slate-400">Participation Mean</p>
+                <p className="text-xs font-medium text-slate-300">Participation Mean</p>
                 <p className="mt-1 font-mono text-lg font-semibold text-white tabular-nums">
                   <AnimatedNumber value={brandEngagementSummary.participationMean} decimals={2} duration={0.6} />{' '}
-                  <span className="text-xs font-normal text-slate-400">/ 5</span>
+                  <span className="text-xs font-normal text-slate-300">/ 5</span>
                 </p>
               </div>
               <div>
-                <p className="text-xs font-medium text-slate-400">Sharing Mean</p>
+                <p className="text-xs font-medium text-slate-300">Sharing Mean</p>
                 <p className="mt-1 font-mono text-lg font-semibold text-white tabular-nums">
                   <AnimatedNumber value={brandEngagementSummary.sharingMean} decimals={2} duration={0.65} />{' '}
-                  <span className="text-xs font-normal text-slate-400">/ 5</span>
+                  <span className="text-xs font-normal text-slate-300">/ 5</span>
                 </p>
               </div>
               <div>
-                <p className="text-xs font-medium text-slate-400">Focus Opportunity</p>
-                <p className="mt-1 font-display text-base font-semibold text-indigo-300">
+                <p className="text-xs font-medium text-slate-300">Focus Opportunity</p>
+                <p className="mt-1 font-display text-base font-semibold text-cyan-300">
                   {brandEngagementSummary.lowestDriver}
                 </p>
               </div>

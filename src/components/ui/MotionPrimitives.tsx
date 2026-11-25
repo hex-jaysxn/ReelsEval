@@ -1,8 +1,8 @@
 import {
   useEffect,
-  useMemo,
   useRef,
   useState,
+  useSyncExternalStore,
   type MouseEvent as ReactMouseEvent,
   type ReactNode,
 } from 'react';
@@ -17,7 +17,11 @@ import {
   useSpring,
   useTransform,
 } from 'motion/react';
-import { computeMotionProfile, type MotionProfile } from '../../utils/motionConfig.ts';
+import {
+  areMotionProfilesEqual,
+  computeMotionProfile,
+  type MotionProfile,
+} from '../../utils/motionConfig.ts';
 
 export const RV_EASE = [0.16, 1, 0.3, 1] as const;
 export const RV_EASE_EMPHASIS = [0.22, 1, 0.36, 1] as const;
@@ -36,50 +40,81 @@ export const RV_SPRING_TACTILE = {
   mass: 0.6,
 };
 
-export function useMotionProfile(): MotionProfile {
-  const reducedMotion = Boolean(useReducedMotion());
-  const [viewportWidth, setViewportWidth] = useState<number>(() =>
-    typeof window !== 'undefined' ? window.innerWidth : 1280
-  );
-  const [coarsePointer, setCoarsePointer] = useState<boolean>(() =>
+interface ViewportSnapshot {
+  width: number;
+  coarsePointer: boolean;
+}
+
+let cachedViewport: ViewportSnapshot = {
+  width: typeof window !== 'undefined' ? window.innerWidth : 1280,
+  coarsePointer:
     typeof window !== 'undefined' && typeof window.matchMedia === 'function'
       ? window.matchMedia('(pointer: coarse)').matches
-      : false
-  );
+      : false,
+};
 
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
+const viewportListeners = new Set<() => void>();
+let globalListenersAttached = false;
 
-    const onResize = () => setViewportWidth(window.innerWidth);
-    window.addEventListener('resize', onResize, { passive: true });
+function refreshViewportSnapshot() {
+  if (typeof window === 'undefined') return;
+  const nextWidth = window.innerWidth;
+  const nextCoarse =
+    typeof window.matchMedia === 'function'
+      ? window.matchMedia('(pointer: coarse)').matches
+      : false;
+  if (
+    nextWidth !== cachedViewport.width ||
+    nextCoarse !== cachedViewport.coarsePointer
+  ) {
+    cachedViewport = { width: nextWidth, coarsePointer: nextCoarse };
+    viewportListeners.forEach((cb) => cb());
+  }
+}
 
-    let pointerMq: MediaQueryList | null = null;
-    const onPointerChange = (e: MediaQueryListEvent) => setCoarsePointer(e.matches);
-
+function subscribeViewport(callback: () => void): () => void {
+  viewportListeners.add(callback);
+  if (!globalListenersAttached && typeof window !== 'undefined') {
+    globalListenersAttached = true;
+    window.addEventListener('resize', refreshViewportSnapshot, { passive: true });
     if (typeof window.matchMedia === 'function') {
-      pointerMq = window.matchMedia('(pointer: coarse)');
-      setCoarsePointer(pointerMq.matches);
-      if (typeof pointerMq.addEventListener === 'function') {
-        pointerMq.addEventListener('change', onPointerChange);
+      const mq = window.matchMedia('(pointer: coarse)');
+      if (typeof mq.addEventListener === 'function') {
+        mq.addEventListener('change', refreshViewportSnapshot);
       }
     }
+  }
+  return () => {
+    viewportListeners.delete(callback);
+  };
+}
 
-    return () => {
-      window.removeEventListener('resize', onResize);
-      if (pointerMq && typeof pointerMq.removeEventListener === 'function') {
-        pointerMq.removeEventListener('change', onPointerChange);
-      }
-    };
-  }, []);
+function getViewportSnapshot(): ViewportSnapshot {
+  return cachedViewport;
+}
 
-  return useMemo(() => {
-    const next = computeMotionProfile({
-      reducedMotion,
-      viewportWidth,
-      coarsePointer,
-    });
-    return next;
-  }, [reducedMotion, viewportWidth, coarsePointer]);
+const SERVER_SNAPSHOT: ViewportSnapshot = { width: 1280, coarsePointer: false };
+
+export function useMotionProfile(): MotionProfile {
+  const reducedMotion = Boolean(useReducedMotion());
+  const viewport = useSyncExternalStore(
+    subscribeViewport,
+    getViewportSnapshot,
+    () => SERVER_SNAPSHOT
+  );
+
+  const profileRef = useRef<MotionProfile | null>(null);
+  const candidate = computeMotionProfile({
+    reducedMotion,
+    viewportWidth: viewport.width,
+    coarsePointer: viewport.coarsePointer,
+  });
+
+  if (!profileRef.current || !areMotionProfilesEqual(profileRef.current, candidate)) {
+    profileRef.current = candidate;
+  }
+
+  return profileRef.current;
 }
 
 export function ScrollProgressBar() {
@@ -97,7 +132,7 @@ export function ScrollProgressBar() {
     <motion.div
       aria-hidden="true"
       style={{ scaleX, transformOrigin: '0% 50%' }}
-      className="fixed top-0 left-0 right-0 h-[2px] z-50 bg-gradient-to-r from-indigo-500 via-sky-400 to-teal-400 pointer-events-none"
+      className="fixed top-0 left-0 right-0 h-[2px] z-50 bg-gradient-to-r from-violet-500 via-blue-500 to-cyan-400 pointer-events-none"
     />
   );
 }
@@ -134,7 +169,7 @@ export function ScrollDepthBackdrop() {
         style={{
           y: orbTopY,
           opacity: orbOpacity,
-          background: 'radial-gradient(closest-side, rgba(99, 102, 241, 0.14), transparent 74%)',
+          background: 'radial-gradient(closest-side, rgba(139, 92, 246, 0.16), transparent 74%)',
         }}
         className="absolute -top-24 left-[4%] w-[42rem] h-[28rem] rounded-full"
       />
@@ -142,7 +177,7 @@ export function ScrollDepthBackdrop() {
         <motion.div
           style={{
             y: orbMidY,
-            background: 'radial-gradient(closest-side, rgba(14, 165, 233, 0.1), transparent 74%)',
+            background: 'radial-gradient(closest-side, rgba(6, 182, 212, 0.12), transparent 74%)',
           }}
           className="absolute top-[34%] right-[2%] w-[34rem] h-[26rem] rounded-full"
         />
@@ -150,7 +185,7 @@ export function ScrollDepthBackdrop() {
       <motion.div
         style={{
           y: orbBottomY,
-          background: 'radial-gradient(closest-side, rgba(20, 184, 166, 0.09), transparent 74%)',
+          background: 'radial-gradient(closest-side, rgba(37, 99, 235, 0.13), transparent 74%)',
         }}
         className="absolute bottom-[4%] left-[32%] w-[36rem] h-[24rem] rounded-full"
       />
@@ -167,8 +202,8 @@ interface PageTransitionProps {
 export function PageTransition({ routeKey, children, className = '' }: PageTransitionProps) {
   const profile = useMotionProfile();
   const isReduced = profile.tier === 'reduced';
-  const duration = isReduced ? 0.01 : 0.24 * profile.durationScale;
-  const yOffset = 10 * profile.distanceScale;
+  const duration = isReduced ? 0.01 : 0.22 * profile.durationScale;
+  const yOffset = 8 * profile.distanceScale;
 
   return (
     <motion.div
@@ -179,7 +214,7 @@ export function PageTransition({ routeKey, children, className = '' }: PageTrans
           : {
               opacity: 0,
               y: yOffset,
-              scale: 0.994,
+              scale: 0.995,
             }
       }
       animate={{
@@ -228,15 +263,15 @@ export function ClipRevealHeading({
   }
 
   const initialState = profile.enableClipMask
-    ? { opacity: 0, y: 16 * profile.distanceScale, clipPath: 'inset(0% 0% 100% 0%)' }
-    : { opacity: 0, y: 12 * profile.distanceScale };
+    ? { opacity: 0, y: 14 * profile.distanceScale, clipPath: 'inset(0% 0% 100% 0%)' }
+    : { opacity: 0, y: 10 * profile.distanceScale };
 
   const visibleState = profile.enableClipMask
     ? { opacity: 1, y: 0, clipPath: 'inset(0% 0% 0% 0%)' }
     : { opacity: 1, y: 0 };
 
   const transition = {
-    duration: 0.42 * profile.durationScale,
+    duration: 0.38 * profile.durationScale,
     delay: delay * profile.durationScale,
     ease: RV_EASE_EMPHASIS,
   };
@@ -280,17 +315,15 @@ export function BlurRevealText({
   const initialState = {
     opacity: 0,
     y: 10 * profile.distanceScale,
-    filter: profile.enableBlur ? 'blur(2px)' : 'none',
   };
 
   const visibleState = {
     opacity: 1,
     y: 0,
-    filter: 'blur(0px)',
   };
 
   const transition = {
-    duration: 0.34 * profile.durationScale,
+    duration: 0.32 * profile.durationScale,
     delay: delay * profile.durationScale,
     ease: RV_EASE,
   };
@@ -334,14 +367,14 @@ export function ScaleMaskReveal({
   const initialState = profile.enableClipMask
     ? {
         opacity: 0,
-        scale: 0.96,
-        y: 14 * profile.distanceScale,
-        clipPath: 'inset(6% 2% 8% 2% round 16px)',
+        scale: 0.965,
+        y: 12 * profile.distanceScale,
+        clipPath: 'inset(4% 1% 6% 1% round 16px)',
       }
     : {
         opacity: 0,
-        scale: 0.97,
-        y: 12 * profile.distanceScale,
+        scale: 0.975,
+        y: 10 * profile.distanceScale,
       };
 
   const visibleState = profile.enableClipMask
@@ -358,7 +391,7 @@ export function ScaleMaskReveal({
       };
 
   const transition = {
-    duration: 0.48 * profile.durationScale,
+    duration: 0.42 * profile.durationScale,
     delay: delay * profile.durationScale,
     ease: RV_EASE,
   };
@@ -399,24 +432,19 @@ export function ScrollSectionBridge({
   });
 
   const bridgeScaleX = useTransform(scrollYProgress, [0, 0.25, 0.75, 1], [0.25, 1, 1, 0.5]);
-  const bridgeOpacity = useTransform(scrollYProgress, [0, 0.2, 0.8, 1], [0.15, 0.85, 0.85, 0.2]);
+  const bridgeOpacity = useTransform(scrollYProgress, [0, 0.2, 0.8, 1], [0.15, 0.9, 0.9, 0.2]);
   const sectionY = useTransform(
     scrollYProgress,
     [0, 0.22, 0.82, 1],
-    [16 * profile.parallaxMultiplier, 0, 0, -10 * profile.parallaxMultiplier]
-  );
-  const sectionScale = useTransform(
-    scrollYProgress,
-    [0, 0.2, 0.85, 1],
-    [1 - 0.015 * profile.parallaxMultiplier, 1, 1, 1 - 0.008 * profile.parallaxMultiplier]
+    [14 * profile.parallaxMultiplier, 0, 0, -8 * profile.parallaxMultiplier]
   );
 
   const seamColor =
     accent === 'teal'
-      ? 'from-transparent via-teal-400/55 to-transparent'
+      ? 'from-transparent via-cyan-400/60 to-transparent'
       : accent === 'sky'
-        ? 'from-transparent via-sky-400/55 to-transparent'
-        : 'from-transparent via-indigo-400/55 to-transparent';
+        ? 'from-transparent via-blue-400/60 to-transparent'
+        : 'from-transparent via-violet-400/60 to-transparent';
 
   return (
     <section ref={ref} id={id} className={`relative ${className}`}>
@@ -427,7 +455,7 @@ export function ScrollSectionBridge({
           className={`pointer-events-none absolute top-0 left-1/2 -translate-x-1/2 h-px w-[min(92%,56rem)] bg-gradient-to-r ${seamColor}`}
         />
       )}
-      <motion.div style={isReduced ? undefined : { y: sectionY, scale: sectionScale }}>
+      <motion.div style={isReduced ? undefined : { y: sectionY }}>
         {children}
       </motion.div>
     </section>
@@ -465,7 +493,7 @@ export function RevealSection({
       id={id}
       initial={{
         opacity: 0,
-        y: 18 * profile.distanceScale,
+        y: 16 * profile.distanceScale,
       }}
       whileInView={{
         opacity: 1,
@@ -473,7 +501,7 @@ export function RevealSection({
       }}
       viewport={{ once: true, amount: profile.scrollRevealAmount }}
       transition={{
-        duration: 0.42 * profile.durationScale,
+        duration: 0.38 * profile.durationScale,
         delay: delay * profile.durationScale,
         ease: RV_EASE,
       }}
@@ -496,7 +524,7 @@ interface StaggerGroupProps {
 export function StaggerGroup({
   children,
   className = '',
-  staggerDelay = 0.055,
+  staggerDelay = 0.05,
   delayChildren = 0.02,
   inView = false,
   id,
@@ -579,7 +607,7 @@ export function StaggerItem({
           x: 0,
           scale: 1,
           transition: {
-            duration: 0.32 * profile.durationScale,
+            duration: 0.3 * profile.durationScale,
             ease: RV_EASE,
           },
         },
@@ -594,7 +622,7 @@ export function StaggerItem({
 export function ParallaxOffset({
   children,
   className = '',
-  offset = 16,
+  offset = 14,
 }: {
   children: ReactNode;
   className?: string;
@@ -632,12 +660,7 @@ export function InteractiveTiltCard({
   const cardRef = useRef<HTMLDivElement | null>(null);
   const pointerX = useMotionValue(50);
   const pointerY = useMotionValue(50);
-  const rotateX = useMotionValue(0);
-  const rotateY = useMotionValue(0);
-
-  const springRotateX = useSpring(rotateX, { stiffness: 260, damping: 24 });
-  const springRotateY = useSpring(rotateY, { stiffness: 260, damping: 24 });
-  const sheen = useMotionTemplate`radial-gradient(280px circle at ${pointerX}% ${pointerY}%, rgba(129, 140, 248, 0.11), transparent 70%)`;
+  const sheen = useMotionTemplate`radial-gradient(280px circle at ${pointerX}% ${pointerY}%, rgba(6, 182, 212, 0.1), rgba(139, 92, 246, 0.04) 45%, transparent 72%)`;
 
   function handleMouseMove(e: ReactMouseEvent<HTMLDivElement>) {
     if (!profile.enable3DTilt || !cardRef.current) return;
@@ -646,13 +669,6 @@ export function InteractiveTiltCard({
     const py = ((e.clientY - rect.top) / rect.height) * 100;
     pointerX.set(px);
     pointerY.set(py);
-    rotateY.set(((px - 50) / 50) * 2.2);
-    rotateX.set((-(py - 50) / 50) * 2.2);
-  }
-
-  function handleMouseLeave() {
-    rotateX.set(0);
-    rotateY.set(0);
   }
 
   if (profile.tier === 'reduced') {
@@ -660,35 +676,23 @@ export function InteractiveTiltCard({
   }
 
   return (
-    <div style={profile.enable3DTilt ? { perspective: 1000 } : undefined} className="h-full">
-      <motion.div
-        ref={cardRef}
-        onMouseMove={handleMouseMove}
-        onMouseLeave={handleMouseLeave}
-        style={
-          profile.enable3DTilt
-            ? {
-                rotateX: springRotateX,
-                rotateY: springRotateY,
-                transformStyle: 'preserve-3d',
-              }
-            : undefined
-        }
-        whileHover={profile.enable3DTilt ? { y: -3 } : undefined}
-        whileTap={{ scale: 0.986 }}
-        transition={RV_SPRING_TACTILE}
-        className={`relative h-full group ${className}`}
-      >
-        {profile.enable3DTilt && (
-          <motion.div
-            aria-hidden="true"
-            style={{ backgroundImage: sheen }}
-            className="pointer-events-none absolute inset-0 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-200 z-10"
-          />
-        )}
-        {children}
-      </motion.div>
-    </div>
+    <motion.div
+      ref={cardRef}
+      onMouseMove={handleMouseMove}
+      whileHover={profile.enable3DTilt ? { y: -2 } : undefined}
+      whileTap={{ scale: 0.99 }}
+      transition={RV_SPRING_TACTILE}
+      className={`relative h-full group ${className}`}
+    >
+      {profile.enable3DTilt && (
+        <motion.div
+          aria-hidden="true"
+          style={{ backgroundImage: sheen }}
+          className="pointer-events-none absolute inset-0 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-200 z-10"
+        />
+      )}
+      {children}
+    </motion.div>
   );
 }
 
@@ -738,4 +742,62 @@ export function AnimatedNumber({
   }, [value, duration, isReduced, shouldRun, profile.durationScale]);
 
   return <span ref={ref}>{display.toFixed(decimals)}</span>;
+}
+
+export function MagneticWrapper({
+  children,
+  className = '',
+  strength = 0.22,
+  maxOffsetX = 6,
+  maxOffsetY = 5,
+}: {
+  children: ReactNode;
+  className?: string;
+  strength?: number;
+  maxOffsetX?: number;
+  maxOffsetY?: number;
+}) {
+  const outerRef = useRef<HTMLDivElement | null>(null);
+  const profile = useMotionProfile();
+  const rawX = useMotionValue(0);
+  const rawY = useMotionValue(0);
+  const springX = useSpring(rawX, { stiffness: 280, damping: 22, mass: 0.55 });
+  const springY = useSpring(rawY, { stiffness: 280, damping: 22, mass: 0.55 });
+
+  if (profile.tier !== 'desktop') {
+    return <div className={`inline-flex ${className}`}>{children}</div>;
+  }
+
+  function handleMouseMove(e: ReactMouseEvent<HTMLDivElement>) {
+    if (!outerRef.current) return;
+    const rect = outerRef.current.getBoundingClientRect();
+    const centerX = rect.left + rect.width / 2;
+    const centerY = rect.top + rect.height / 2;
+    const dx = Math.max(-maxOffsetX, Math.min(maxOffsetX, (e.clientX - centerX) * strength));
+    const dy = Math.max(-maxOffsetY, Math.min(maxOffsetY, (e.clientY - centerY) * strength));
+    rawX.set(dx);
+    rawY.set(dy);
+  }
+
+  function handleMouseLeave() {
+    rawX.set(0);
+    rawY.set(0);
+  }
+
+  return (
+    <div
+      ref={outerRef}
+      onMouseMove={handleMouseMove}
+      onMouseLeave={handleMouseLeave}
+      className={`relative inline-flex p-3 -m-3 ${className}`}
+    >
+      <motion.div
+        data-magnetic-target="true"
+        style={{ x: springX, y: springY }}
+        className="inline-flex"
+      >
+        {children}
+      </motion.div>
+    </div>
+  );
 }

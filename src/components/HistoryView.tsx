@@ -64,10 +64,10 @@ export function HistoryView({
   return (
     <section aria-label="Evaluation History" className="space-y-6 rv-animate-in">
       <GlassPanel className="p-6">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-5 border-b border-white/10">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-5 border-b border-sky-400/15">
           <div>
             <h1 className="font-display text-xl font-bold text-white">Evaluation History</h1>
-            <p className="mt-1 text-sm text-slate-300">
+            <p className="mt-1 text-sm text-slate-200">
               Saved Reel assessments scored on the 8.00–20.00 effectiveness rubric.
             </p>
           </div>
@@ -102,7 +102,7 @@ export function HistoryView({
             <div className="mt-5 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
               <div className="relative flex-1 max-w-sm">
                 <Search
-                  className="h-4 w-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none"
+                  className="h-4 w-4 text-slate-300 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none"
                   aria-hidden="true"
                 />
                 <input
@@ -118,7 +118,7 @@ export function HistoryView({
               <div
                 role="group"
                 aria-label="Filter by effectiveness level"
-                className="inline-flex flex-wrap items-center gap-1 p-1 bg-slate-950/75 border border-white/10 rounded-xl self-start"
+                className="inline-flex flex-wrap items-center gap-1 p-1 bg-[#070b28] border border-sky-400/20 rounded-xl self-start"
               >
                 {[
                   { id: 'all', label: 'All' },
@@ -133,15 +133,15 @@ export function HistoryView({
                       key={opt.id}
                       type="button"
                       onClick={() => setTierFilter(opt.id as TierFilter)}
-                      className={`relative px-3 py-1.5 text-xs font-medium rounded-lg transition-colors duration-150 whitespace-nowrap shrink-0 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400 ${
-                        selected ? 'text-white' : 'text-slate-400 hover:text-white'
+                      className={`relative px-3 py-1.5 text-xs font-medium rounded-lg transition-colors duration-150 whitespace-nowrap shrink-0 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400 ${
+                        selected ? 'text-white' : 'text-slate-300 hover:text-white'
                       }`}
                     >
                       {selected && (
                         <motion.span
                           layoutId="rv-history-filter"
                           transition={reduced ? { duration: 0.01 } : RV_SPRING}
-                          className="absolute inset-0 rounded-lg bg-indigo-600 shadow-xs"
+                          className="absolute inset-0 rounded-lg rv-cta-gradient shadow-xs"
                           aria-hidden="true"
                         />
                       )}
@@ -156,7 +156,7 @@ export function HistoryView({
             <div className="mt-5 overflow-x-auto">
               <table className="w-full text-left border-collapse">
                 <thead>
-                  <tr className="border-b border-white/12 text-xs font-semibold text-slate-400">
+                  <tr className="border-b border-sky-400/20 text-xs font-semibold text-slate-300">
                     <th className="py-3 pr-4">Video</th>
                     <th className="py-3 px-4">Target Audience</th>
                     <th className="py-3 px-4 text-right">Overall Score</th>
@@ -165,36 +165,36 @@ export function HistoryView({
                     <th className="py-3 pl-4 text-right">Actions</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-white/8 text-sm">
+                <tbody className="divide-y divide-sky-400/10 text-sm">
                   {filteredHistory.length === 0 ? (
                     <tr>
-                      <td colSpan={6} className="py-10 text-center text-sm text-slate-400">
+                      <td colSpan={6} className="py-10 text-center text-sm text-slate-300">
                         No evaluations match the current filter.
                       </td>
                     </tr>
                   ) : (
                     filteredHistory.map((item) => (
-                      <tr key={item.id} className="hover:bg-white/[0.03] transition-colors">
+                      <tr key={item.id} className="hover:bg-white/[0.04] transition-colors">
                         <td className="py-3.5 pr-4">
                           <p className="font-medium text-white truncate max-w-[220px]">
                             {item.videoMetadata.fileName}
                           </p>
-                          <p className="text-xs text-slate-400 tabular-nums">
+                          <p className="text-xs text-slate-300 tabular-nums">
                             {formatBytes(item.videoMetadata.fileSizeBytes)} ·{' '}
                             {formatDuration(item.videoMetadata.durationSeconds)}
                           </p>
                         </td>
                         <td className="py-3.5 px-4">
-                          <p className="text-slate-200">{item.context.targetPersona}</p>
-                          <p className="text-xs text-slate-400">{item.context.campaignObjective}</p>
+                          <p className="text-slate-100">{item.context.targetPersona}</p>
+                          <p className="text-xs text-slate-300">{item.context.campaignObjective}</p>
                         </td>
-                        <td className="py-3.5 px-4 text-right font-mono font-semibold tabular-nums text-indigo-300 whitespace-nowrap">
+                        <td className="py-3.5 px-4 text-right font-mono font-semibold tabular-nums text-cyan-300 whitespace-nowrap">
                           {item.overallScore.toFixed(2)} / 20
                         </td>
-                        <td className="py-3.5 px-4 text-xs font-semibold text-slate-200 whitespace-nowrap">
+                        <td className="py-3.5 px-4 text-xs font-semibold text-slate-100 whitespace-nowrap">
                           {item.scoreTier.level}
                         </td>
-                        <td className="py-3.5 px-4 text-xs text-slate-400 tabular-nums whitespace-nowrap">
+                        <td className="py-3.5 px-4 text-xs text-slate-300 tabular-nums whitespace-nowrap">
                           {new Date(item.createdAt).toLocaleDateString()}
                         </td>
                         <td className="py-3.5 pl-4 text-right">
@@ -203,7 +203,7 @@ export function HistoryView({
                               type="button"
                               onClick={() => onSelectEvaluation(item)}
                               aria-label={`View report for ${item.videoMetadata.fileName}`}
-                              className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-slate-700 bg-slate-900 text-xs font-medium text-slate-200 hover:bg-slate-800 hover:text-white active:scale-[0.97] transition-all duration-150 whitespace-nowrap cursor-pointer"
+                              className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-sky-400/25 bg-[#0e154a] text-xs font-medium text-slate-100 hover:bg-[#151f64] hover:text-white active:scale-[0.97] transition-all duration-150 whitespace-nowrap cursor-pointer"
                             >
                               <Eye className="h-3.5 w-3.5" aria-hidden="true" />
                               <span>View</span>
@@ -212,7 +212,7 @@ export function HistoryView({
                               type="button"
                               onClick={() => handleExportMarkdown(item)}
                               aria-label={`Download Markdown report for ${item.videoMetadata.fileName}`}
-                              className="inline-flex items-center justify-center p-1.5 rounded-lg border border-slate-700 bg-slate-900 text-slate-300 hover:bg-slate-800 hover:text-white active:scale-[0.95] transition-all duration-150 cursor-pointer"
+                              className="inline-flex items-center justify-center p-1.5 rounded-lg border border-sky-400/25 bg-[#0e154a] text-slate-200 hover:bg-[#151f64] hover:text-white active:scale-[0.95] transition-all duration-150 cursor-pointer"
                             >
                               <Download className="h-3.5 w-3.5" aria-hidden="true" />
                             </button>
@@ -220,7 +220,7 @@ export function HistoryView({
                               type="button"
                               onClick={() => onDeleteEvaluation(item.id)}
                               aria-label={`Delete evaluation for ${item.videoMetadata.fileName}`}
-                              className="inline-flex items-center justify-center p-1.5 rounded-lg border border-slate-700 bg-slate-900 text-slate-400 hover:bg-red-950/80 hover:text-red-300 hover:border-red-500/40 active:scale-[0.95] transition-all duration-150 cursor-pointer"
+                              className="inline-flex items-center justify-center p-1.5 rounded-lg border border-sky-400/25 bg-[#0e154a] text-slate-200 hover:bg-red-950/85 hover:text-red-200 hover:border-red-400/50 active:scale-[0.95] transition-all duration-150 cursor-pointer"
                             >
                               <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
                             </button>

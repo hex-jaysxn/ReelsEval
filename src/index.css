@@ -7,28 +7,28 @@
 }
 
 :root {
-  --rv-bg-base: #070b14;
-  --rv-bg-elevated: #0d1424;
-  --rv-glass-primary-bg: rgba(15, 23, 42, 0.62);
-  --rv-glass-elevated-bg: rgba(19, 29, 50, 0.78);
-  --rv-glass-nav-bg: rgba(9, 14, 26, 0.74);
-  --rv-glass-border: rgba(148, 163, 184, 0.16);
-  --rv-glass-border-strong: rgba(148, 163, 184, 0.26);
-  --rv-glass-highlight: inset 0 1px 0 0 rgba(255, 255, 255, 0.07);
-  --rv-shadow-glass: 0 18px 42px -18px rgba(2, 6, 23, 0.72), 0 4px 14px -4px rgba(2, 6, 23, 0.45);
-  --rv-shadow-elevated: 0 24px 56px -16px rgba(2, 6, 23, 0.85), 0 0 0 1px rgba(99, 102, 241, 0.1);
-  --rv-text-primary: #f8fafc;
-  --rv-text-secondary: #cbd5e1;
-  --rv-text-muted: #94a3b8;
-  --rv-accent: #6366f1;
-  --rv-accent-teal: #14b8a6;
+  --rv-bg-base: #f4f7fb;
+  --rv-bg-elevated: #ffffff;
+  --rv-glass-primary-bg: rgba(255, 255, 255, 0.82);
+  --rv-glass-elevated-bg: rgba(255, 255, 255, 0.95);
+  --rv-glass-nav-bg: rgba(255, 255, 255, 0.86);
+  --rv-glass-border: rgba(14, 165, 233, 0.22);
+  --rv-glass-border-strong: rgba(99, 102, 241, 0.32);
+  --rv-glass-highlight: inset 0 1px 2px 0 rgba(255, 255, 255, 0.95), inset 0 0 20px rgba(14, 165, 233, 0.04);
+  --rv-shadow-glass: 0 20px 45px -12px rgba(15, 23, 42, 0.09), 0 4px 14px -2px rgba(14, 165, 233, 0.08);
+  --rv-shadow-elevated: 0 28px 60px -16px rgba(15, 23, 42, 0.14), 0 0 0 1px rgba(14, 165, 233, 0.15);
+  --rv-text-primary: #090d16;
+  --rv-text-secondary: #1e293b;
+  --rv-text-muted: #475569;
+  --rv-accent: #0284c7;
+  --rv-accent-teal: #0d9488;
   --rv-ease: cubic-bezier(0.16, 1, 0.3, 1);
   --rv-ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 @layer base {
   html {
-    color-scheme: dark;
+    color-scheme: light;
     scroll-behavior: smooth;
   }
 
@@ -44,25 +44,28 @@
   }
 }
 
-/* Dark Atmospheric Environment */
+@keyframes rv-liquid-drift {
+  0% {
+    transform: translate(0px, 0px) scale(1);
+  }
+  50% {
+    transform: translate(25px, -35px) scale(1.06);
+  }
+  100% {
+    transform: translate(-15px, 20px) scale(0.96);
+  }
+}
+
+/* Light Liquid Digital Environment */
 .rv-atmosphere {
   position: relative;
   isolation: isolate;
   overflow-x: clip;
   background-color: var(--rv-bg-base);
   background-image:
-    radial-gradient(64rem 42rem at 12% -6%, rgba(99, 102, 241, 0.14), transparent 62%),
-    radial-gradient(52rem 38rem at 90% 8%, rgba(14, 165, 233, 0.1), transparent 60%),
-    radial-gradient(48rem 34rem at 55% 100%, rgba(20, 184, 166, 0.07), transparent 65%);
-}
-
-@keyframes rv-ambient-breathe {
-  0% {
-    opacity: 0.55;
-  }
-  100% {
-    opacity: 0.92;
-  }
+    radial-gradient(64rem 42rem at 10% -8%, rgba(56, 189, 248, 0.18), transparent 60%),
+    radial-gradient(56rem 40rem at 92% 12%, rgba(129, 140, 248, 0.15), transparent 58%),
+    radial-gradient(48rem 36rem at 50% 100%, rgba(45, 212, 191, 0.12), transparent 65%);
 }
 
 .rv-atmosphere::before {
@@ -72,29 +75,30 @@
   z-index: -2;
   pointer-events: none;
   background-image:
-    radial-gradient(46rem 32rem at 18% 12%, rgba(99, 102, 241, 0.09), transparent 64%),
-    radial-gradient(42rem 30rem at 82% 24%, rgba(56, 189, 248, 0.07), transparent 62%),
-    radial-gradient(38rem 28rem at 48% 88%, rgba(20, 184, 166, 0.06), transparent 65%);
+    radial-gradient(46rem 32rem at 22% 18%, rgba(14, 165, 233, 0.12), transparent 62%),
+    radial-gradient(42rem 30rem at 78% 28%, rgba(99, 102, 241, 0.09), transparent 60%),
+    radial-gradient(38rem 28rem at 45% 85%, rgba(20, 184, 166, 0.08), transparent 64%);
 }
 
 .rv-atmosphere::after {
   content: '';
   position: absolute;
-  top: -120px;
-  left: 12%;
-  width: 640px;
-  height: 360px;
+  top: -140px;
+  left: 15%;
+  width: 700px;
+  height: 380px;
   z-index: -1;
   pointer-events: none;
-  background: radial-gradient(closest-side, rgba(99, 102, 241, 0.14), transparent 72%);
+  background: radial-gradient(closest-side, rgba(56, 189, 248, 0.2), transparent 75%);
+  animation: rv-liquid-drift 16s ease-in-out infinite alternate;
   opacity: 0.85;
 }
 
-/* Glass Hierarchy */
+/* Glass Hierarchy for Light Liquid UI */
 .rv-glass-primary {
   background: var(--rv-glass-primary-bg);
-  backdrop-filter: blur(10px) saturate(135%);
-  -webkit-backdrop-filter: blur(10px) saturate(135%);
+  backdrop-filter: blur(16px) saturate(160%);
+  -webkit-backdrop-filter: blur(16px) saturate(160%);
   border: 1px solid var(--rv-glass-border);
   box-shadow: var(--rv-glass-highlight), var(--rv-shadow-glass);
   transition: border-color 200ms var(--rv-ease), box-shadow 200ms var(--rv-ease), transform 200ms var(--rv-ease);
@@ -102,8 +106,8 @@
 
 .rv-glass-elevated {
   background: var(--rv-glass-elevated-bg);
-  backdrop-filter: blur(12px) saturate(145%);
-  -webkit-backdrop-filter: blur(12px) saturate(145%);
+  backdrop-filter: blur(20px) saturate(175%);
+  -webkit-backdrop-filter: blur(20px) saturate(175%);
   border: 1px solid var(--rv-glass-border-strong);
   box-shadow: var(--rv-glass-highlight), var(--rv-shadow-elevated);
   transition: border-color 200ms var(--rv-ease), box-shadow 200ms var(--rv-ease);
@@ -111,16 +115,16 @@
 
 .rv-glass-nav {
   background: var(--rv-glass-nav-bg);
-  backdrop-filter: blur(10px) saturate(140%);
-  -webkit-backdrop-filter: blur(10px) saturate(140%);
+  backdrop-filter: blur(18px) saturate(165%);
+  -webkit-backdrop-filter: blur(18px) saturate(165%);
   border-color: var(--rv-glass-border);
   transition: background-color 240ms var(--rv-ease), border-color 240ms var(--rv-ease), box-shadow 240ms var(--rv-ease);
 }
 
 .rv-glass-nav-scrolled {
-  background: rgba(7, 11, 20, 0.88);
-  border-color: rgba(148, 163, 184, 0.24);
-  box-shadow: 0 12px 32px -12px rgba(2, 6, 23, 0.78);
+  background: rgba(255, 255, 255, 0.92);
+  border-color: rgba(14, 165, 233, 0.25);
+  box-shadow: 0 12px 32px -12px rgba(15, 23, 42, 0.12);
 }
 
 .rv-card-hover {
@@ -129,9 +133,9 @@
 
 @media (hover: hover) and (pointer: fine) {
   .rv-card-hover:hover {
-    transform: translateY(-2px);
-    border-color: rgba(148, 163, 184, 0.3);
-    box-shadow: var(--rv-glass-highlight), 0 22px 46px -18px rgba(2, 6, 23, 0.82), 0 0 0 1px rgba(99, 102, 241, 0.14);
+    transform: translateY(-3px);
+    border-color: rgba(14, 165, 233, 0.4);
+    box-shadow: var(--rv-glass-highlight), 0 24px 50px -16px rgba(15, 23, 42, 0.14), 0 0 0 1px rgba(14, 165, 233, 0.2);
   }
 }
 
@@ -183,32 +187,32 @@
   transform: scaleX(1);
 }
 
-/* Solid High-Contrast Form & Interactive Controls */
+/* Light Liquid Form & Interactive Controls */
 .rv-input-solid {
-  background-color: #0b1220;
-  border: 1px solid rgba(148, 163, 184, 0.24);
-  color: #f8fafc;
+  background-color: rgba(255, 255, 255, 0.9);
+  border: 1px solid rgba(14, 165, 233, 0.25);
+  color: #0f172a;
   transition: border-color 160ms var(--rv-ease), box-shadow 160ms var(--rv-ease), background-color 160ms var(--rv-ease), transform 160ms var(--rv-ease);
 }
 
 .rv-input-solid::placeholder {
-  color: #64748b;
+  color: #94a3b8;
 }
 
 .rv-input-solid:hover:not(:disabled):not(:focus) {
-  border-color: rgba(148, 163, 184, 0.4);
+  border-color: rgba(14, 165, 233, 0.45);
 }
 
 .rv-input-solid:focus {
   outline: none;
-  border-color: #818cf8;
-  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.22);
-  background-color: #0e1628;
+  border-color: #0284c7;
+  box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.22);
+  background-color: #ffffff;
 }
 
 .rv-input-solid option {
-  background-color: #0d1424;
-  color: #f8fafc;
+  background-color: #ffffff;
+  color: #0f172a;
 }
 
 .tabular-nums {

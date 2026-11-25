@@ -9,16 +9,14 @@ export function ReeViewMark({ size = 'md' }: { size?: 'sm' | 'md' | 'lg' }) {
 
   return (
     <span
-      className={`relative inline-flex ${dims} items-center justify-center bg-gradient-to-br from-indigo-500 via-indigo-600 to-sky-500 text-white shadow-sm ring-1 ring-white/20 shrink-0 transition-transform duration-200 ease-out group-hover:scale-105 group-hover:rotate-3 group-active:scale-95`}
+      className={`relative inline-flex ${dims} items-center justify-center overflow-hidden bg-sky-950/40 shadow-md ring-1 ring-sky-400/30 shrink-0 transition-transform duration-200 ease-out group-hover:scale-105 group-active:scale-95`}
       aria-hidden="true"
     >
-      <svg className="h-4 w-4 transition-transform duration-200 group-hover:translate-x-[0.5px]" viewBox="0 0 24 24" fill="none">
-        <path
-          d="M7 5.5L18.5 12L7 18.5V5.5Z"
-          fill="currentColor"
-          fillOpacity="0.95"
-        />
-      </svg>
+      <img
+        src="/public/assets/aistudio/image_cd0c9ca8.png"
+        alt="ReeView Logo"
+        className="h-full w-full object-cover"
+      />
     </span>
   );
 }

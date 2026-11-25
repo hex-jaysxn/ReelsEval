@@ -1,11 +1,11 @@
-import { BookOpen, Clock, Film, LogOut, Settings, X } from 'lucide-react';
+import { BookOpen, Clock, Film, Home, LogOut, Settings, X } from 'lucide-react';
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
 import type { AuthUser } from '../types/auth.ts';
 import type { ReelEvaluation } from '../types/evaluation.ts';
 import { ReeViewMark } from './ui/GlassPrimitives.tsx';
 import { RV_EASE, RV_SPRING } from './ui/MotionPrimitives.tsx';
 
-export type ActiveTab = 'evaluator' | 'history' | 'methodology' | 'settings';
+export type ActiveTab = 'home' | 'evaluator' | 'history' | 'methodology' | 'settings';
 
 interface SidebarProps {
   activeTab: ActiveTab;
@@ -32,6 +32,7 @@ export function Sidebar({
 }: SidebarProps) {
   const reduced = useReducedMotion();
   const navItems: { id: ActiveTab; label: string; icon: typeof Film; count?: number }[] = [
+    { id: 'home', label: 'Home', icon: Home },
     { id: 'evaluator', label: 'Video Evaluator', icon: Film },
     { id: 'history', label: 'Evaluation History', icon: Clock, count: history.length },
     { id: 'methodology', label: 'Scoring Rubric', icon: BookOpen },
@@ -44,7 +45,7 @@ export function Sidebar({
         <button
           type="button"
           onClick={() => {
-            onSelectTab('evaluator');
+            onSelectTab('home');
             onCloseMobile();
           }}
           className="group flex items-center gap-2.5 text-left cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400 rounded-lg"

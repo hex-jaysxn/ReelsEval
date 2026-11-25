@@ -391,15 +391,17 @@ export default function App() {
   }
 
   const pageTitle =
-    activeTab === 'evaluator'
-      ? activeEvaluation
-        ? 'Evaluation Report'
-        : 'Video Evaluator'
-      : activeTab === 'history'
-        ? 'Evaluation History'
-        : activeTab === 'settings'
-          ? 'Account Settings'
-          : 'Scoring Rubric';
+    activeTab === 'home'
+      ? 'Home & Overview'
+      : activeTab === 'evaluator'
+        ? activeEvaluation
+          ? 'Evaluation Report'
+          : 'Video Evaluator'
+        : activeTab === 'history'
+          ? 'Evaluation History'
+          : activeTab === 'settings'
+            ? 'Account Settings'
+            : 'Scoring Rubric';
 
   const workflowStep = isAnalyzing ? 2 : activeEvaluation ? 3 : 1;
   const evaluatorViewKey = isAnalyzing
@@ -600,6 +602,16 @@ export default function App() {
 
                   <AnimatePresence mode="wait">
                     <PageTransition key={mainContentKey} routeKey={mainContentKey}>
+                      {activeTab === 'home' && (
+                        <div className="-m-4 sm:-m-8">
+                          <LandingPage
+                            authUser={authUser}
+                            onOpenWorkspace={() => setActiveTab('evaluator')}
+                            onNavigateAuth={() => {}}
+                            onNavigateRoute={navigateRoute}
+                          />
+                        </div>
+                      )}
                       {activeTab === 'evaluator' && (
                         <>
                           {!activeEvaluation && !isAnalyzing && (

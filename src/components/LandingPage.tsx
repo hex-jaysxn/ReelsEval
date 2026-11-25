@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import { motion, useMotionValueEvent, useScroll } from 'motion/react';
 import type { AppRoute } from '../utils/appRoute.ts';
+import type { AuthUser } from '../types/auth.ts';
 import {
   ActionButton,
   ElevatedGlassPanel,
@@ -38,6 +39,8 @@ import {
 interface LandingPageProps {
   onNavigateAuth: (mode: 'login' | 'register') => void;
   onNavigateRoute: (route: AppRoute) => void;
+  authUser?: AuthUser | null;
+  onOpenWorkspace?: () => void;
 }
 
 const PREVIEW_VARIABLES = [

@@ -1,4 +1,5 @@
 import type { ReelEvaluation } from '../types/evaluation.ts';
+import { sanitizeEvaluationByScope } from './evaluationLogic.ts';
 
 const HISTORY_STORAGE_KEY = 'reelsevaluator_history_v2';
 const MAX_HISTORY_ITEMS = 30;
@@ -10,16 +11,18 @@ export function loadEvaluationHistory(): ReelEvaluation[] {
     if (!raw) return [];
     const parsed = JSON.parse(raw);
     if (!Array.isArray(parsed)) return [];
-    return parsed.filter(
-      (item): item is ReelEvaluation =>
-        Boolean(
-          item &&
-            item.schemaVersion === 2 &&
-            typeof item.id === 'string' &&
-            typeof item.overallScore === 'number' &&
-            item.variables
-        )
-    );
+    return parsed
+      .filter(
+        (item): item is ReelEvaluation =>
+          Boolean(
+            item &&
+              item.schemaVersion === 2 &&
+              typeof item.id === 'string' &&
+              (typeof item.overallScore === 'number' || item.overallScore === null) &&
+              item.variables
+          )
+      )
+      .map(sanitizeEvaluationByScope);
   } catch {
     return [];
   }

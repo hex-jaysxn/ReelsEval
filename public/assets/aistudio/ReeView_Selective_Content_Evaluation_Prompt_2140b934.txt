@@ -1,0 +1,1094 @@
+REEVIEW — SELECTIVE CONTENT EVALUATION FEATURE
+FULL IMPLEMENTATION PROMPT
+============================================================
+
+PROJECT CONTEXT
+---------------
+You are modifying the existing ReeView AI video evaluation website.
+
+The current ReeView evaluator allows a user to upload a short-form Reel and receive an AI-based assessment. The current evaluation is based on four Reels Marketing Content characteristics:
+
+1. Informational
+2. Entertainment
+3. Trendiness
+4. Relatable
+
+Each characteristic is evaluated using three assessment dimensions:
+
+1. Interaction
+2. Participation
+3. Sharing
+
+Each dimension receives a rating from 2 to 5.
+
+IMPORTANT:
+The existing research rubric / assessment criteria from the provided PDF must remain the authoritative source for scoring and evaluation. DO NOT replace, rewrite, simplify, invent, or change the original rubric criteria.
+
+The new feature must ONLY add a user-controlled evaluation scope.
+
+============================================================
+MAIN FEATURE REQUEST
+============================================================
+
+Add a new section that allows the user to choose WHICH CONTENT CHARACTERISTICS they want ReeView to evaluate.
+
+The user must be able to select:
+
+- 1 characteristic
+- 2 characteristics
+- 3 characteristics
+- all 4 characteristics
+
+The selected characteristics determine the scope of the AI evaluation.
+
+Example:
+
+If the user selects only:
+
+Entertainment
+
+Then the AI must evaluate ONLY the Entertainment characteristic.
+
+It must evaluate:
+
+Entertainment
+- Interaction
+- Participation
+- Sharing
+
+The AI's explanation, score interpretation, strengths, weaknesses, and recommendations must all focus on Entertainment.
+
+The AI must NOT provide an evaluation of Informational, Trendiness, or Relatable because those characteristics were not selected.
+
+If the user selects:
+
+Entertainment + Relatable
+
+Then the AI must evaluate ONLY:
+
+Entertainment
+- Interaction
+- Participation
+- Sharing
+
+Relatable
+- Interaction
+- Participation
+- Sharing
+
+The same principle applies for any combination of selected characteristics.
+
+============================================================
+FULL EVALUATION OPTION
+============================================================
+
+Add a clear option for:
+
+FULL EVALUATION
+
+Description:
+
+"Evaluate all four content characteristics using the complete Reels Marketing Content Effectiveness Assessment."
+
+Full Evaluation means:
+
+- Informational
+- Entertainment
+- Trendiness
+- Relatable
+
+All four characteristics are evaluated using their original Interaction, Participation, and Sharing criteria.
+
+When Full Evaluation is selected, the existing complete assessment behavior must remain available.
+
+Selecting all four individual characteristics should produce the same complete evaluation as Full Evaluation.
+
+Do not create a different scoring system for Full Evaluation.
+
+============================================================
+UI REQUIREMENTS
+============================================================
+
+Add the new selection section before the final "Analyze Reel" action.
+
+Suggested heading:
+
+"What would you like to evaluate?"
+
+Suggested supporting text:
+
+"Select one or more content characteristics. ReeView will focus its analysis, scoring, strengths, areas for improvement, and recommendations on your selected characteristics."
+
+Create four selectable cards/options:
+
+1. INFORMATIONAL
+   Description:
+   "Evaluate the Reel's informational content."
+
+2. ENTERTAINMENT
+   Description:
+   "Evaluate the Reel's entertainment content."
+
+3. TRENDINESS
+   Description:
+   "Evaluate the Reel's use of trends and current content styles."
+
+4. RELATABLE
+   Description:
+   "Evaluate the Reel's relatable content and experiences."
+
+Also provide:
+
+"FULL EVALUATION"
+Description:
+"Evaluate all four content characteristics using the complete assessment."
+
+The UI should clearly show which options are currently selected.
+
+Recommended interaction:
+
+- Clicking a characteristic toggles it on/off.
+- Multiple characteristics can be selected simultaneously.
+- At least one characteristic must be selected before analysis.
+- Full Evaluation selects all four characteristics.
+- Selecting all four individual characteristics should automatically be treated as a full evaluation.
+- If Full Evaluation is active and the user deselects one characteristic, Full Evaluation should deactivate and the remaining selected characteristics should remain selected.
+
+Do not allow the user to submit an empty selection.
+
+Show a clear validation message if the user attempts to analyze with no selected characteristic:
+
+"Please select at least one content characteristic to evaluate."
+
+============================================================
+IMPORTANT: CONTENT FOCUS
+============================================================
+
+The new feature is about CONTENT, not audience targeting.
+
+Do not make audience selection the primary evaluation scope.
+
+The AI must evaluate the actual uploaded video content.
+
+Existing fields such as:
+
+- Primary Target Audience
+- Campaign Objective
+- Product or Brand Context
+
+may remain in the interface if they are already part of the existing application, but they must NOT replace or override the selected content-characteristic evaluation.
+
+These fields may provide context to the AI, but the official rubric score must be based on the selected content characteristics and their official criteria.
+
+The selected content characteristics are the evaluation scope.
+
+============================================================
+OFFICIAL RUBRIC — DO NOT CHANGE
+============================================================
+
+The provided PDF is the authoritative source for the assessment criteria.
+
+The four content characteristics are:
+
+A. INFORMATIONAL CONTENT
+B. ENTERTAINMENT CONTENT
+C. TRENDINESS
+D. RELATABLE CONTENT
+
+Each characteristic has three assessment dimensions:
+
+1. Interaction
+2. Participation
+3. Sharing
+
+Each dimension receives a score from 2 to 5.
+
+Use the exact meaning and scoring descriptions from the provided PDF for every selected characteristic.
+
+DO NOT invent alternative criteria.
+
+DO NOT use generic AI scoring criteria when the official rubric provides the relevant criterion.
+
+The AI must determine the score by comparing the uploaded Reel's demonstrated content against the corresponding official rubric descriptions.
+
+============================================================
+SCORING FORMULA
+============================================================
+
+For every selected characteristic:
+
+Variable Score =
+(Interaction + Participation + Sharing) / 3
+
+Each dimension is scored from 2.00 to 5.00.
+
+Therefore each characteristic has a score from 2.00 to 5.00.
+
+Use the official effectiveness interpretation from the PDF:
+
+4.25–5.00
+Very Effective
+
+3.50–4.24
+Effective
+
+2.75–3.49
+Moderately Effective
+
+2.00–2.74
+Less Effective
+
+Do not change these ranges.
+
+============================================================
+IMPORTANT RULE FOR PARTIAL EVALUATIONS
+============================================================
+
+When fewer than four characteristics are selected:
+
+DO NOT present the result as the official overall 20-point Reels Marketing Content Effectiveness Score.
+
+The official overall assessment is based on all four characteristics.
+
+Instead, show:
+
+"Selected Content Evaluation"
+
+and report the score of each selected characteristic.
+
+You may also display:
+
+"Selected Characteristics Average"
+
+calculated as the average of the selected characteristic scores.
+
+Example:
+
+Selected characteristics:
+
+Entertainment = 4.33
+Relatable = 3.67
+
+Selected Characteristics Average:
+4.00 / 5.00
+
+This is a selected-variable summary and NOT the official overall 20-point score.
+
+Clearly label it so the user does not confuse it with the official overall assessment.
+
+============================================================
+OFFICIAL FULL EVALUATION SCORING
+============================================================
+
+Only when all four characteristics are evaluated should ReeView calculate the official Overall Reels Marketing Content Effectiveness Score.
+
+Official formula:
+
+Overall Score =
+Informational +
+Entertainment +
+Trendiness +
+Relatable
+
+Minimum:
+8.00
+
+Maximum:
+20.00
+
+The official overall effectiveness interpretation must follow the provided PDF.
+
+The existing Full Evaluation behavior should be preserved.
+
+Do not create a new overall scoring method.
+
+============================================================
+AI EVALUATION SCOPE RULE
+============================================================
+
+This is the most important implementation rule.
+
+The selected characteristics define the AI's evaluation scope.
+
+The AI MUST:
+
+1. Analyze the uploaded video.
+2. Identify evidence relevant to the selected characteristics.
+3. Evaluate each selected characteristic.
+4. Evaluate Interaction, Participation, and Sharing for every selected characteristic.
+5. Assign scores from 2 to 5 using the official PDF rubric.
+6. Explain why each score was assigned.
+7. Identify strengths related to the selected characteristics.
+8. Identify areas for improvement related to the selected characteristics.
+9. Give development recommendations related to the selected characteristics.
+10. Keep the entire written analysis focused on the selected characteristics.
+
+The AI MUST NOT:
+
+- Score unselected characteristics.
+- Give detailed commentary about unselected characteristics.
+- Give recommendations for unselected characteristics.
+- Claim that an unselected characteristic is effective or ineffective.
+- Invent scores for unselected characteristics.
+- Mention unselected characteristics as weaknesses unless explicitly necessary to explain that they were not evaluated.
+- Use the unselected characteristics to calculate the partial evaluation.
+
+Example:
+
+User selects:
+Entertainment only.
+
+Correct:
+
+Entertainment
+Interaction: 4/5
+Participation: 5/5
+Sharing: 4/5
+Variable Score: 4.33/5
+Effectiveness: Very Effective
+
+Strengths:
+- Focus on entertaining elements.
+- Attention capture.
+- Engagement potential.
+
+Areas for Improvement:
+- Improvements specifically related to entertainment.
+
+Recommendations:
+- Recommendations specifically related to entertainment.
+
+Incorrect:
+
+Entertainment: 4.33
+Informational: 3.00
+Trendiness: 4.00
+Relatable: 3.50
+
+Do NOT do this when only Entertainment is selected.
+
+============================================================
+AI RESPONSE STRUCTURE
+============================================================
+
+For a single selected characteristic:
+
+1. Evaluation Summary
+2. Selected Characteristic
+3. Interaction Score
+4. Participation Score
+5. Sharing Score
+6. Variable Score
+7. Effectiveness Level
+8. Evidence / Explanation
+9. Strengths
+10. Areas for Improvement
+11. Development Recommendations
+
+Example structure:
+
+EVALUATION SUMMARY
+
+Entertainment
+4.33 / 5.00
+Very Effective
+
+Interaction
+4 / 5
+[Rubric-based explanation]
+
+Participation
+5 / 5
+[Rubric-based explanation]
+
+Sharing
+4 / 5
+[Rubric-based explanation]
+
+Why this score
+[Explain how the video demonstrated the official criteria.]
+
+Strengths
+- ...
+- ...
+
+Areas for Improvement
+- ...
+- ...
+
+Development Recommendations
+- ...
+- ...
+
+============================================================
+MULTIPLE SELECTED CHARACTERISTICS RESPONSE
+============================================================
+
+If the user selects 2 or 3 characteristics, organize the response by characteristic.
+
+Example:
+
+SELECTED CONTENT EVALUATION
+
+ENTERTAINMENT
+4.33 / 5.00
+Very Effective
+
+Interaction: 5/5
+Participation: 4/5
+Sharing: 4/5
+
+[Analysis]
+
+RELATABLE
+3.67 / 5.00
+Effective
+
+Interaction: 4/5
+Participation: 3/5
+Sharing: 4/5
+
+[Analysis]
+
+SELECTED CHARACTERISTICS AVERAGE
+4.00 / 5.00
+
+STRENGTHS
+Only discuss strengths related to Entertainment and Relatable.
+
+AREAS FOR IMPROVEMENT
+Only discuss Entertainment and Relatable.
+
+DEVELOPMENT RECOMMENDATIONS
+Only provide recommendations related to Entertainment and Relatable.
+
+Do not discuss Informational or Trendiness.
+
+============================================================
+FULL EVALUATION RESPONSE
+============================================================
+
+When all four characteristics are selected:
+
+INFORMATIONAL
+Interaction
+Participation
+Sharing
+Variable Score
+Effectiveness Level
+Analysis
+
+ENTERTAINMENT
+Interaction
+Participation
+Sharing
+Variable Score
+Effectiveness Level
+Analysis
+
+TRENDINESS
+Interaction
+Participation
+Sharing
+Variable Score
+Effectiveness Level
+Analysis
+
+RELATABLE
+Interaction
+Participation
+Sharing
+Variable Score
+Effectiveness Level
+Analysis
+
+OVERALL REELS MARKETING CONTENT EFFECTIVENESS
+
+Overall Score:
+X.XX / 20
+
+Effectiveness Level:
+[Official PDF classification]
+
+Then provide:
+
+Strengths
+Areas for Improvement
+Development Recommendations
+
+The Full Evaluation should follow the existing PDF-based assessment output requirements.
+
+============================================================
+SCORING CONSISTENCY
+============================================================
+
+Do not let the AI score based on personal preference.
+
+Scores must be grounded in visible/audible evidence from the uploaded Reel.
+
+The AI should consider relevant multimodal evidence such as:
+
+- Visual presentation
+- Spoken content
+- On-screen text
+- Audio/music when relevant
+- Editing
+- Narrative/content structure
+- Demonstrated use of content characteristics
+
+However, evidence must always be interpreted through the selected characteristic's official rubric.
+
+Do not award a high score simply because the video looks professionally edited.
+
+Professional production quality alone is not sufficient unless it supports the specific rubric criterion being evaluated.
+
+============================================================
+RUBRIC FIDELITY
+============================================================
+
+The official PDF must remain the source of truth.
+
+Do not:
+
+- Change the wording meaning of the rubric.
+- Change the 2–5 scoring scale.
+- Change the Interaction / Participation / Sharing dimensions.
+- Change the effectiveness ranges.
+- Change the overall 8–20 scoring system.
+- Invent additional official variables.
+- Remove existing official variables.
+- Replace the research criteria with generic marketing advice.
+
+The new feature is a SELECTION LAYER, not a new research instrument.
+
+============================================================
+RESULT UI
+============================================================
+
+Update the result screen so the user can immediately understand what was evaluated.
+
+For example:
+
+"Evaluation Scope"
+
+[Entertainment]
+
+or:
+
+"Evaluation Scope"
+
+[Entertainment] [Relatable]
+
+or:
+
+"Evaluation Scope"
+
+[Full Evaluation]
+
+The result page should never imply that unselected characteristics were evaluated.
+
+For partial evaluations, show:
+
+"2 of 4 content characteristics evaluated"
+
+or:
+
+"3 of 4 content characteristics evaluated"
+
+For Full Evaluation:
+
+"Full evaluation — 4 of 4 content characteristics"
+
+============================================================
+SELECTION STATE
+============================================================
+
+Add a clear state model such as:
+
+selectedVariables = []
+
+Possible values:
+
+"informational"
+"entertainment"
+"trendiness"
+"relatable"
+
+Full evaluation can be represented by all four selected values or a separate fullEvaluation boolean.
+
+Prefer a single source of truth so the application cannot accidentally send contradictory selection states to the AI.
+
+Before analysis, construct the evaluation scope from the selected values.
+
+Example:
+
+{
+  selectedVariables: [
+    "entertainment",
+    "relatable"
+  ],
+  fullEvaluation: false
+}
+
+For full evaluation:
+
+{
+  selectedVariables: [
+    "informational",
+    "entertainment",
+    "trendiness",
+    "relatable"
+  ],
+  fullEvaluation: true
+}
+
+============================================================
+AI PROMPT CONSTRUCTION
+============================================================
+
+Do not use one static AI prompt that always asks for all four variables.
+
+Build the evaluation instructions dynamically from the user's selected variables.
+
+Example:
+
+If selectedVariables = ["entertainment"]:
+
+The AI receives an evaluation scope saying:
+
+"Evaluate ONLY Entertainment Content.
+Use ONLY the Entertainment section of the official rubric.
+Evaluate Interaction, Participation, and Sharing.
+Do not score or evaluate Informational, Trendiness, or Relatable."
+
+If selectedVariables = ["entertainment", "trendiness"]:
+
+The AI receives:
+
+"Evaluate ONLY Entertainment Content and Trendiness.
+For each selected characteristic, evaluate Interaction, Participation, and Sharing using the official rubric.
+Do not evaluate Informational or Relatable."
+
+If all four are selected:
+
+"Perform the complete Reels Marketing Content Effectiveness Assessment using all four official characteristics."
+
+============================================================
+IMPORTANT AI GUARDRAIL
+============================================================
+
+Include a strict instruction similar to:
+
+"You are ReeView's content evaluation engine. The user's selected content characteristics define the scope of this evaluation. You must not evaluate characteristics outside the selected scope. The official assessment rubric supplied by the application is authoritative. For each selected characteristic, assign Interaction, Participation, and Sharing scores from 2 to 5 according to the corresponding official rubric descriptions. Base conclusions on evidence observed in the uploaded Reel. Keep all explanations, strengths, weaknesses, and recommendations aligned with the selected characteristics. When fewer than four characteristics are selected, do not calculate or display the official 8–20 overall score."
+
+============================================================
+EXISTING FUNCTIONALITY
+============================================================
+
+Do not break the existing ReeView application.
+
+Preserve:
+
+- Existing video upload functionality.
+- Existing supported video formats.
+- Existing file size limits.
+- Existing Gemini/API integration.
+- Existing loading/progress states.
+- Existing error handling.
+- Existing result rendering.
+- Existing UI theme.
+- Existing navigation.
+- Existing configuration.
+- Existing authentication/state management.
+- Existing database/storage behavior.
+- Existing scoring behavior for Full Evaluation.
+- Existing research-based rubric.
+
+Only add or modify what is necessary to implement selective evaluation.
+
+If the project already has reusable components, reuse them instead of creating duplicate components.
+
+============================================================
+BACKWARD COMPATIBILITY
+============================================================
+
+Existing users who choose the complete evaluation should receive the same type of full assessment as before.
+
+If the current system previously evaluated all four variables automatically, the new default behavior should preferably remain:
+
+Full Evaluation
+
+unless the user intentionally selects a different scope.
+
+Do not silently change the existing research scoring.
+
+============================================================
+ERROR HANDLING
+============================================================
+
+If no variables are selected:
+
+"Please select at least one content characteristic to evaluate."
+
+If the AI returns a score for a characteristic that was not selected:
+
+Do not render it.
+
+The frontend should validate the response against selectedVariables before displaying the result.
+
+If possible, also validate on the backend/API layer.
+
+Never trust the model to enforce scope by itself.
+
+============================================================
+FRONTEND VALIDATION
+============================================================
+
+The frontend should know exactly which variables were selected before submitting the evaluation.
+
+Send the selection with the video evaluation request.
+
+Example:
+
+{
+  "video": "...",
+  "evaluationScope": {
+    "variables": [
+      "entertainment",
+      "relatable"
+    ],
+    "fullEvaluation": false
+  }
+}
+
+The backend should use this scope when constructing the AI evaluation prompt.
+
+============================================================
+RESULT VALIDATION
+============================================================
+
+After the AI responds:
+
+1. Check the selected variables.
+2. Confirm that each selected variable has:
+   - Interaction score
+   - Participation score
+   - Sharing score
+   - Variable score
+   - Effectiveness level
+3. Confirm that no unselected variable is presented as evaluated.
+4. Recalculate variable scores when possible rather than blindly trusting the model.
+5. For Full Evaluation, calculate the official overall score from the four variable scores.
+6. Use the official effectiveness ranges.
+7. Render only the appropriate result sections.
+
+The application should treat the AI as the evaluator of evidence, but the application should remain responsible for enforcing the scoring structure.
+
+============================================================
+RECOMMENDED DATA MODEL
+============================================================
+
+Use a structure similar to:
+
+evaluation = {
+  scope: {
+    selectedVariables: [
+      "informational",
+      "entertainment",
+      "trendiness",
+      "relatable"
+    ],
+    fullEvaluation: true
+  },
+
+  results: {
+    informational: {
+      interaction: 4,
+      participation: 4,
+      sharing: 4,
+      score: 4.00,
+      effectiveness: "Effective"
+    },
+
+    entertainment: {
+      interaction: 5,
+      participation: 4,
+      sharing: 4,
+      score: 4.33,
+      effectiveness: "Very Effective"
+    },
+
+    trendiness: {
+      interaction: 4,
+      participation: 3,
+      sharing: 4,
+      score: 3.67,
+      effectiveness: "Effective"
+    },
+
+    relatable: {
+      interaction: 5,
+      participation: 4,
+      sharing: 4,
+      score: 4.33,
+      effectiveness: "Very Effective"
+    }
+  },
+
+  overall: {
+    score: 16.33,
+    max: 20,
+    effectiveness: "Effective"
+  }
+}
+
+For partial evaluation, only include selected variables in the results or clearly mark unselected variables as not evaluated.
+
+============================================================
+UX DETAILS
+============================================================
+
+Make the selection interface visually consistent with the existing ReeView design.
+
+Use the existing:
+
+- Colors
+- Gradients
+- Glassmorphism
+- Borders
+- Typography
+- Spacing
+- Rounded cards
+- Responsive behavior
+
+Selected cards should have a clearly visible active state.
+
+Possible selected state:
+
+- Bright border
+- Glow
+- Check icon
+- Slight background change
+
+Do not redesign the entire application.
+
+The feature should feel native to the existing ReeView interface.
+
+============================================================
+MOBILE RESPONSIVENESS
+============================================================
+
+The evaluator is expected to work on mobile screens.
+
+Ensure:
+
+- Four selection cards fit naturally on mobile.
+- Cards can stack vertically if necessary.
+- Touch targets are large enough.
+- Selection state is obvious.
+- Full Evaluation is easy to find.
+- Analyze button remains accessible.
+- Result sections remain readable.
+
+============================================================
+ACADEMIC / RESEARCH INTEGRITY
+============================================================
+
+The purpose of this feature is to allow the user to choose the content characteristic(s) they want to assess while preserving the original research instrument.
+
+Do not modify the research instrument.
+
+The AI is evaluating demonstrated content characteristics and their potential to encourage Interaction, Participation, and Sharing.
+
+Do not claim that the AI proves actual consumer behavior or causal effects.
+
+Use language such as:
+
+- "demonstrates"
+- "indicates"
+- "shows potential to encourage"
+- "based on the assessment criteria"
+
+Avoid unsupported claims such as:
+
+- "will definitely increase engagement"
+- "guarantees more shares"
+- "proves consumers will buy"
+- "causes higher engagement"
+
+The PDF explicitly distinguishes the rubric's assessment classifications from proof of causal effects on actual consumer behavior.
+
+============================================================
+EXAMPLE SCENARIOS
+============================================================
+
+SCENARIO 1
+User selects:
+
+Entertainment
+
+AI evaluates only Entertainment.
+
+Output:
+
+Entertainment
+Interaction: X/5
+Participation: X/5
+Sharing: X/5
+Score: X/5
+Effectiveness: X
+
+Then Entertainment-focused strengths, improvements, and recommendations.
+
+No Informational score.
+No Trendiness score.
+No Relatable score.
+No 20-point overall score.
+
+------------------------------------------------------------
+
+SCENARIO 2
+User selects:
+
+Informational + Entertainment
+
+AI evaluates:
+
+Informational
+Interaction
+Participation
+Sharing
+
+Entertainment
+Interaction
+Participation
+Sharing
+
+Then:
+
+Selected Characteristics Average: X/5
+
+Strengths and recommendations must focus only on Informational and Entertainment.
+
+No official 20-point overall score.
+
+------------------------------------------------------------
+
+SCENARIO 3
+User selects:
+
+Informational + Entertainment + Trendiness
+
+AI evaluates only those three.
+
+Show:
+
+3 of 4 content characteristics evaluated.
+
+Calculate each selected variable score.
+
+Calculate:
+
+Selected Characteristics Average = average of the three selected variable scores.
+
+Do not calculate the official 20-point overall score.
+
+------------------------------------------------------------
+
+SCENARIO 4
+User selects:
+
+Full Evaluation
+
+AI evaluates all four.
+
+Show:
+
+4 of 4 content characteristics evaluated.
+
+Calculate each variable score.
+
+Calculate official Overall Reels Marketing Content Effectiveness Score:
+
+Informational +
+Entertainment +
+Trendiness +
+Relatable
+
+Maximum = 20
+Minimum = 8
+
+Apply official effectiveness classification.
+
+Then show:
+
+- Strengths
+- Areas for Improvement
+- Development Recommendations
+
+============================================================
+FINAL IMPLEMENTATION REQUIREMENT
+============================================================
+
+Inspect the existing ReeView codebase before making changes.
+
+Identify:
+
+- Current evaluator page/component.
+- Upload flow.
+- AI request function.
+- AI prompt/system instruction.
+- Current rubric/scoring implementation.
+- Result schema.
+- Result rendering.
+- Existing state management.
+
+Implement the selective evaluation feature using the existing architecture.
+
+Do not create a parallel evaluator.
+
+Do not duplicate the existing AI pipeline.
+
+Modify the existing evaluation pipeline so the selectedVariables are passed from the UI to the AI evaluation layer and enforced throughout the process.
+
+Make the implementation production-ready.
+
+Test all four cases:
+
+1. One selected variable.
+2. Two selected variables.
+3. Three selected variables.
+4. Full evaluation / all four variables.
+
+Verify that:
+
+- Scores follow the official rubric.
+- Interaction, Participation, and Sharing remain 2–5.
+- Variable Score is the average of the three dimensions.
+- Partial evaluations do not incorrectly show an official /20 overall score.
+- Full Evaluation calculates the official /20 score.
+- AI text focuses only on selected characteristics.
+- Unselected characteristics are not evaluated.
+- Existing functionality remains intact.
+- Mobile UI works correctly.
+- No console/runtime errors are introduced.
+
+FINAL GOAL
+----------
+
+ReeView should allow users to choose exactly what CONTENT characteristic they want the AI to evaluate:
+
+[ Informational ]
+[ Entertainment ]
+[ Trendiness ]
+[ Relatable ]
+[ Full Evaluation ]
+
+The user's selection controls the AI's focus.
+
+The provided PDF controls the evaluation criteria and scoring.
+
+DO NOT CHANGE THE ORIGINAL RUBRIC.
+DO NOT INVENT NEW SCORING.
+DO NOT EVALUATE UNSELECTED CHARACTERISTICS.
+DO NOT BREAK THE EXISTING FULL EVALUATION.

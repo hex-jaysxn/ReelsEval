@@ -2,7 +2,16 @@ import { useMemo, useState } from 'react';
 import { motion, useReducedMotion } from 'motion/react';
 import { Download, Eye, Film, Search, Trash2 } from 'lucide-react';
 import type { ReelEvaluation } from '../types/evaluation.ts';
-import { buildReportMarkdown, formatBytes, formatDuration } from '../utils/evaluationLogic.ts';
+import {
+  buildReportMarkdown,
+  computeSelectedCharacteristicsAverage,
+  formatBytes,
+  formatDuration,
+  getEvaluatedVariableList,
+  getVariableEffectiveness,
+  isFullEvaluation,
+  resolveEvaluationScope,
+} from '../utils/evaluationLogic.ts';
 import { ActionButton, EmptyState, GlassPanel, Modal } from './ui/GlassPrimitives.tsx';
 import { RV_SPRING } from './ui/MotionPrimitives.tsx';
 
@@ -14,7 +23,7 @@ interface HistoryViewProps {
   onGoToEvaluator: () => void;
 }
 
-type TierFilter = 'all' | 'very-effective' | 'effective' | 'moderate' | 'less-effective';
+type TierFilter = 'all' | 'very-effective' | 'effective' | 'moderate' | 'less-effective' | 'partial';
 
 export function HistoryView({
   history,
@@ -31,18 +40,32 @@ export function HistoryView({
   const filteredHistory = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
     return history.filter((item) => {
+      const full = isFullEvaluation(item) && item.overallScore !== null && item.scoreTier !== null;
+      const scope = resolveEvaluationScope(item);
+      const selectedAvg =
+        item.selectedAverageScore ??
+        computeSelectedCharacteristicsAverage(item.variables, scope.selectedVariables);
+      const effLevel = full ? item.scoreTier!.level : getVariableEffectiveness(selectedAvg).level;
+      const varLabels = getEvaluatedVariableList(item)
+        .map((v) => v.label.toLowerCase())
+        .join(' ');
+
       const matchesSearch =
         !q ||
         item.videoMetadata.fileName.toLowerCase().includes(q) ||
         item.context.targetPersona.toLowerCase().includes(q) ||
         item.context.campaignObjective.toLowerCase().includes(q) ||
-        item.scoreTier.level.toLowerCase().includes(q);
+        effLevel.toLowerCase().includes(q) ||
+        varLabels.includes(q);
 
       if (!matchesSearch) return false;
-      if (tierFilter === 'very-effective') return item.overallScore >= 17;
-      if (tierFilter === 'effective') return item.overallScore >= 14 && item.overallScore < 17;
-      if (tierFilter === 'moderate') return item.overallScore >= 11 && item.overallScore < 14;
-      if (tierFilter === 'less-effective') return item.overallScore < 11;
+      if (tierFilter === 'partial') return !full;
+      if (tierFilter === 'very-effective') return full && (item.overallScore ?? 0) >= 17;
+      if (tierFilter === 'effective')
+        return full && (item.overallScore ?? 0) >= 14 && (item.overallScore ?? 0) < 17;
+      if (tierFilter === 'moderate')
+        return full && (item.overallScore ?? 0) >= 11 && (item.overallScore ?? 0) < 14;
+      if (tierFilter === 'less-effective') return full && (item.overallScore ?? 0) < 11;
       return true;
     });
   }, [history, searchQuery, tierFilter]);
@@ -126,6 +149,7 @@ export function HistoryView({
                   { id: 'effective', label: '14–16.99' },
                   { id: 'moderate', label: '11–13.99' },
                   { id: 'less-effective', label: '8–10.99' },
+                  { id: 'partial', label: 'Partial Scope' },
                 ].map((opt) => {
                   const selected = tierFilter === opt.id;
                   return (
@@ -159,7 +183,7 @@ export function HistoryView({
                   <tr className="border-b border-sky-400/20 text-xs font-semibold text-slate-300">
                     <th className="py-3 pr-4">Video</th>
                     <th className="py-3 px-4">Target Audience</th>
-                    <th className="py-3 px-4 text-right">Overall Score</th>
+                    <th className="py-3 px-4 text-right">Score</th>
                     <th className="py-3 px-4">Effectiveness Level</th>
                     <th className="py-3 px-4">Evaluated</th>
                     <th className="py-3 pl-4 text-right">Actions</th>
@@ -173,7 +197,23 @@ export function HistoryView({
                       </td>
                     </tr>
                   ) : (
-                    filteredHistory.map((item) => (
+                    filteredHistory.map((item) => {
+                      const full =
+                        isFullEvaluation(item) &&
+                        item.overallScore !== null &&
+                        item.scoreTier !== null;
+                      const scope = resolveEvaluationScope(item);
+                      const selectedAvg =
+                        item.selectedAverageScore ??
+                        computeSelectedCharacteristicsAverage(
+                          item.variables,
+                          scope.selectedVariables
+                        );
+                      const effLevel = full
+                        ? item.scoreTier!.level
+                        : getVariableEffectiveness(selectedAvg).level;
+
+                      return (
                       <tr key={item.id} className="hover:bg-white/[0.04] transition-colors">
                         <td className="py-3.5 pr-4">
                           <p className="font-medium text-white truncate max-w-[220px]">
@@ -189,10 +229,12 @@ export function HistoryView({
                           <p className="text-xs text-slate-300">{item.context.campaignObjective}</p>
                         </td>
                         <td className="py-3.5 px-4 text-right font-mono font-semibold tabular-nums text-cyan-300 whitespace-nowrap">
-                          {item.overallScore.toFixed(2)} / 20
+                          {full && item.overallScore !== null
+                            ? `${item.overallScore.toFixed(2)} / 20`
+                            : `${selectedAvg.toFixed(2)} / 5 (${scope.selectedVariables.length}/4)`}
                         </td>
                         <td className="py-3.5 px-4 text-xs font-semibold text-slate-100 whitespace-nowrap">
-                          {item.scoreTier.level}
+                          {full ? effLevel : `${effLevel} (Partial)`}
                         </td>
                         <td className="py-3.5 px-4 text-xs text-slate-300 tabular-nums whitespace-nowrap">
                           {new Date(item.createdAt).toLocaleDateString()}
@@ -227,7 +269,8 @@ export function HistoryView({
                           </div>
                         </td>
                       </tr>
-                    ))
+                      );
+                    })
                   )}
                 </tbody>
               </table>

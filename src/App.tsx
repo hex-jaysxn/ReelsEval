@@ -4,11 +4,18 @@ import { AnimatePresence, MotionConfig, useMotionValueEvent, useScroll } from 'm
 import type { AuthProviderAvailability, AuthUser } from './types/auth.ts';
 import type {
   EvaluationContext,
+  EvaluationScope,
   ReelEvaluation,
   ReelVideoMetadata,
 } from './types/evaluation.ts';
 import { getRoutePath, parseAppRoute, type AppRoute } from './utils/appRoute.ts';
-import { parseEvaluationApiResponse } from './utils/evaluationLogic.ts';
+import {
+  EMPTY_SCOPE_VALIDATION_MESSAGE,
+  createFullEvaluationScope,
+  parseEvaluationApiResponse,
+  sanitizeEvaluationByScope,
+  validateEvaluationScope,
+} from './utils/evaluationLogic.ts';
 import { parseAuthApiResponse } from './utils/authResponse.ts';
 import { Sidebar, type ActiveTab } from './components/Sidebar.tsx';
 import { UploadStage } from './components/UploadStage.tsx';
@@ -107,6 +114,9 @@ export default function App() {
     campaignObjective: 'Brand Awareness',
     brandContext: '',
   });
+  const [evaluationScope, setEvaluationScope] = useState<EvaluationScope>(() =>
+    createFullEvaluationScope()
+  );
 
   const [validationError, setValidationError] = useState<string | null>(null);
   const [apiError, setApiError] = useState<{
@@ -136,7 +146,7 @@ export default function App() {
           evaluations?: ReelEvaluation[];
         } | null;
         if (res.ok && Array.isArray(data?.evaluations)) {
-          setHistory(data.evaluations);
+          setHistory(data.evaluations.map(sanitizeEvaluationByScope));
         }
       } catch {
         // Ignore transient history load error
@@ -336,6 +346,12 @@ export default function App() {
   async function handleAnalyzeReel() {
     if (!selectedFile || !videoMetadata || isAnalyzing) return;
 
+    const scopeCheck = validateEvaluationScope(evaluationScope);
+    if (!scopeCheck.valid) {
+      setValidationError(scopeCheck.errorMessage || EMPTY_SCOPE_VALIDATION_MESSAGE);
+      return;
+    }
+
     setIsAnalyzing(true);
     setApiError(null);
     setValidationError(null);
@@ -343,6 +359,7 @@ export default function App() {
     try {
       const formData = new FormData();
       formData.append('video', selectedFile);
+      formData.append('evaluationScope', JSON.stringify(evaluationScope));
       formData.append('targetPersona', context.targetPersona);
       formData.append('campaignObjective', context.campaignObjective);
       if (context.brandContext?.trim()) {
@@ -387,7 +404,7 @@ export default function App() {
         return;
       }
 
-      const evaluation = parsed.evaluation;
+      const evaluation = sanitizeEvaluationByScope(parsed.evaluation);
       setActiveEvaluation(evaluation);
       setHistory((prev) => [evaluation, ...prev.filter((item) => item.id !== evaluation.id)].slice(0, 30));
     } catch (err) {
@@ -529,7 +546,7 @@ export default function App() {
                 history={history}
                 activeEvaluationId={activeEvaluation?.id || null}
                 onSelectHistoryItem={(item) => {
-                  setActiveEvaluation(item);
+                  setActiveEvaluation(sanitizeEvaluationByScope(item));
                   setApiError(null);
                   setActiveTab('evaluator');
                 }}
@@ -669,11 +686,18 @@ export default function App() {
                               previewUrl={previewUrl}
                               videoMetadata={videoMetadata}
                               context={context}
+                              evaluationScope={evaluationScope}
                               isAnalyzing={isAnalyzing}
                               onFileSelected={handleFileSelected}
                               onClearFile={handleClearFile}
                               onUpdateVideoMetrics={handleUpdateVideoMetrics}
                               onChangeContext={setContext}
+                              onChangeEvaluationScope={(next) => {
+                                setEvaluationScope(next);
+                                if (next.selectedVariables.length > 0 && validationError === EMPTY_SCOPE_VALIDATION_MESSAGE) {
+                                  setValidationError(null);
+                                }
+                              }}
                               onAnalyze={handleAnalyzeReel}
                               validationError={validationError}
                               onValidationError={setValidationError}
@@ -681,7 +705,10 @@ export default function App() {
                           )}
 
                           {isAnalyzing && videoMetadata && (
-                            <ProcessingState fileName={videoMetadata.fileName} />
+                            <ProcessingState
+                              fileName={videoMetadata.fileName}
+                              evaluationScope={evaluationScope}
+                            />
                           )}
 
                           {activeEvaluation && !isAnalyzing && (
@@ -700,7 +727,7 @@ export default function App() {
                         <HistoryView
                           history={history}
                           onSelectEvaluation={(item) => {
-                            setActiveEvaluation(item);
+                            setActiveEvaluation(sanitizeEvaluationByScope(item));
                             setApiError(null);
                             setActiveTab('evaluator');
                           }}

@@ -12,7 +12,9 @@ import type {
   TargetUserPersona,
 } from './src/types/evaluation.ts';
 import {
+  EMPTY_SCOPE_VALIDATION_MESSAGE,
   MAX_VIDEO_SIZE_BYTES,
+  parseEvaluationScopePayload,
   resolveVideoMimeType,
   validateVideoMetadata,
 } from './src/utils/evaluationLogic.ts';
@@ -183,6 +185,18 @@ async function startServer() {
           return;
         }
 
+        const scopeResult = parseEvaluationScopePayload(req.body?.evaluationScope);
+        if (!scopeResult.valid || !scopeResult.scope) {
+          const payload: ApiErrorPayload = {
+            error: {
+              code: 'INVALID_INPUT',
+              message: scopeResult.errorMessage || EMPTY_SCOPE_VALIDATION_MESSAGE,
+            },
+          };
+          res.status(400).json(payload);
+          return;
+        }
+
         const rawPersona = String(req.body?.targetPersona || 'General Audience');
         const targetPersona = VALID_PERSONAS.includes(rawPersona as TargetUserPersona)
           ? (rawPersona as TargetUserPersona)
@@ -222,6 +236,7 @@ async function startServer() {
             campaignObjective,
             brandContext: brandContext || undefined,
           },
+          evaluationScope: scopeResult.scope,
         });
 
         const authUser = (req as express.Request & { authUser: AuthUser }).authUser;

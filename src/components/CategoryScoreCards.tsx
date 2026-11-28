@@ -1,4 +1,11 @@
 import type { EffectivenessLevel, ReelEvaluation, VariableAssessment } from '../types/evaluation.ts';
+import {
+  computeSelectedCharacteristicsAverage,
+  getEvaluatedVariableList,
+  getVariableEffectiveness,
+  isFullEvaluation,
+  resolveEvaluationScope,
+} from '../utils/evaluationLogic.ts';
 import { GlassPanel, ProgressBar } from './ui/GlassPrimitives.tsx';
 import {
   ClipRevealHeading,
@@ -105,13 +112,23 @@ function VariableCard({ variable }: { variable: VariableAssessment }) {
 }
 
 export function CategoryScoreCards({ evaluation }: CategoryScoreCardsProps) {
-  const { variables, brandEngagementSummary, overallScore, scoreTier } = evaluation;
-  const variableList = [
-    variables.informational,
-    variables.entertainment,
-    variables.trendiness,
-    variables.relatable,
-  ];
+  const { brandEngagementSummary, overallScore, scoreTier } = evaluation;
+  const full = isFullEvaluation(evaluation) && overallScore !== null && scoreTier !== null;
+  const scope = resolveEvaluationScope(evaluation);
+  const variableList = getEvaluatedVariableList(evaluation);
+  const selectedAverage =
+    evaluation.selectedAverageScore ??
+    computeSelectedCharacteristicsAverage(evaluation.variables, scope.selectedVariables);
+  const selectedEff = getVariableEffectiveness(selectedAverage);
+
+  const gridColsClass =
+    variableList.length === 1
+      ? 'grid-cols-1 max-w-xl'
+      : variableList.length === 2
+        ? 'grid-cols-1 md:grid-cols-2'
+        : variableList.length === 3
+          ? 'grid-cols-1 md:grid-cols-3'
+          : 'grid-cols-1 md:grid-cols-2 xl:grid-cols-4';
 
   return (
     <div className="space-y-8">
@@ -120,7 +137,11 @@ export function CategoryScoreCards({ evaluation }: CategoryScoreCardsProps) {
         <ScaleMaskReveal inView>
           <GlassPanel
             as="section"
-            ariaLabel="4x3 Scoring and Computation Matrix"
+            ariaLabel={
+              full
+                ? '4x3 Scoring and Computation Matrix'
+                : 'Selected Content Scoring and Computation Matrix'
+            }
             className="p-6 rv-card-hover"
           >
             <div className="flex flex-wrap items-baseline justify-between gap-2 mb-4">
@@ -173,7 +194,9 @@ export function CategoryScoreCards({ evaluation }: CategoryScoreCardsProps) {
                 </tbody>
                 <tfoot>
                   <tr className="border-t border-sky-400/20 bg-[#070b28]/80 text-sm font-semibold">
-                    <td className="py-3 pr-4 text-white">Total / Dimension Means</td>
+                    <td className="py-3 pr-4 text-white">
+                      {full ? 'Total / Dimension Means' : 'Selected Characteristics Average'}
+                    </td>
                     <td className="py-3 px-3 text-right font-mono tabular-nums text-cyan-300">
                       {brandEngagementSummary.interactionMean.toFixed(2)}
                     </td>
@@ -184,10 +207,14 @@ export function CategoryScoreCards({ evaluation }: CategoryScoreCardsProps) {
                       {brandEngagementSummary.sharingMean.toFixed(2)}
                     </td>
                     <td className="py-3 px-3 text-right font-mono tabular-nums text-white">
-                      {overallScore.toFixed(2)} / 20
+                      {full ? `${overallScore.toFixed(2)} / 20` : `${selectedAverage.toFixed(2)} / 5.00`}
                     </td>
-                    <td className={`py-3 pl-4 text-xs font-semibold ${getEffectivenessTextClass(scoreTier.level)}`}>
-                      {scoreTier.level}
+                    <td
+                      className={`py-3 pl-4 text-xs font-semibold ${getEffectivenessTextClass(
+                        full ? scoreTier.level : selectedEff.level
+                      )}`}
+                    >
+                      {full ? scoreTier.level : `${selectedEff.level} (Partial)`}
                     </td>
                   </tr>
                 </tfoot>
@@ -206,10 +233,12 @@ export function CategoryScoreCards({ evaluation }: CategoryScoreCardsProps) {
             </h3>
           </ClipRevealHeading>
           <span className="font-mono text-xs font-medium text-slate-300 tabular-nums">
-            4 Variables · 2.00–5.00 Each · {overallScore.toFixed(2)} / 20.00 Total
+            {full
+              ? `4 Variables · 2.00–5.00 Each · ${overallScore.toFixed(2)} / 20.00 Total`
+              : `${variableList.length} of 4 Characteristics Evaluated · Selected Average ${selectedAverage.toFixed(2)} / 5.00`}
           </span>
         </div>
-        <StaggerGroup inView staggerDelay={0.08} className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
+        <StaggerGroup inView staggerDelay={0.08} className={`grid ${gridColsClass} gap-4`}>
           {variableList.map((v) => (
             <StaggerItem key={v.key} className="h-full">
               <VariableCard variable={v} />

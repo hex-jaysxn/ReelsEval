@@ -7,6 +7,12 @@ import {
   Users,
 } from 'lucide-react';
 import type { AudienceSegmentPrediction, ReelEvaluation } from '../types/evaluation.ts';
+import {
+  getEvaluatedVariableList,
+  isFullEvaluation,
+  matchVariableKeyFromLabel,
+  resolveEvaluationScope,
+} from '../utils/evaluationLogic.ts';
 import { GlassPanel } from './ui/GlassPrimitives.tsx';
 import {
   InteractiveTiltCard,
@@ -44,13 +50,33 @@ function getPriorityStyle(priority: 'High' | 'Medium' | 'Low'): string {
 }
 
 export function InsightsAndStrategy({ evaluation }: InsightsAndStrategyProps) {
-  const {
-    strengths,
-    areasForImprovement,
-    developmentRecommendations,
-    predictedAudienceResponse,
-    marketingStrategyRecommendations,
-  } = evaluation;
+  const strengths = Array.isArray(evaluation.strengths) ? evaluation.strengths : [];
+  const areasForImprovement = Array.isArray(evaluation.areasForImprovement)
+    ? evaluation.areasForImprovement
+    : [];
+  const developmentRecommendations = Array.isArray(evaluation.developmentRecommendations)
+    ? evaluation.developmentRecommendations
+    : [];
+  const predictedAudienceResponse = Array.isArray(evaluation.predictedAudienceResponse)
+    ? evaluation.predictedAudienceResponse
+    : [];
+  const marketingStrategyRecommendations = Array.isArray(
+    evaluation.marketingStrategyRecommendations
+  )
+    ? evaluation.marketingStrategyRecommendations
+    : [];
+
+  const full = isFullEvaluation(evaluation);
+  const scope = resolveEvaluationScope(evaluation);
+  const allowedSet = new Set(scope.selectedVariables);
+  const evaluatedNames = getEvaluatedVariableList(evaluation)
+    .map((v) => v.label)
+    .join(', ');
+
+  const scopedRecommendations = developmentRecommendations.filter((rec) => {
+    const matched = matchVariableKeyFromLabel(rec.targetVariable);
+    return matched !== null && allowedSet.has(matched);
+  });
 
   return (
     <div className="space-y-8">
@@ -110,15 +136,22 @@ export function InsightsAndStrategy({ evaluation }: InsightsAndStrategyProps) {
       <ScrollSectionBridge accent="indigo" className="pt-2">
         <RevealSection>
           <GlassPanel as="section" ariaLabel="Development Recommendations" className="p-6 rv-card-hover">
-            <div className="flex items-center gap-2 mb-4">
-              <ArrowUpRight className="h-4 w-4 text-cyan-400 shrink-0" aria-hidden="true" />
-              <h3 className="font-display text-base font-semibold text-white">
-                Development Recommendations
-              </h3>
+            <div className="flex flex-wrap items-baseline justify-between gap-2 mb-4">
+              <div className="flex items-center gap-2">
+                <ArrowUpRight className="h-4 w-4 text-cyan-400 shrink-0" aria-hidden="true" />
+                <h3 className="font-display text-base font-semibold text-white">
+                  Development Recommendations
+                </h3>
+              </div>
+              {!full && evaluatedNames && (
+                <span className="text-xs text-slate-300">
+                  Focused on: {evaluatedNames}
+                </span>
+              )}
             </div>
 
             <div className="divide-y divide-sky-400/15">
-              {developmentRecommendations.map((rec, idx) => (
+              {scopedRecommendations.map((rec, idx) => (
                 <div key={idx} className="py-4 first:pt-1 last:pb-1">
                   <div className="flex flex-wrap items-center gap-2 text-xs mb-1.5">
                     <span className={`font-semibold ${getPriorityStyle(rec.priority)}`}>

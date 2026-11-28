@@ -827,6 +827,12 @@ export class AppDatabase {
   }
 
   saveEvaluationForUser(userId: string, evaluation: ReelEvaluation): void {
+    const sortableScore =
+      typeof evaluation.overallScore === 'number'
+        ? evaluation.overallScore
+        : typeof evaluation.selectedAverageScore === 'number'
+          ? evaluation.selectedAverageScore
+          : 0;
     this.db
       .prepare(
         `INSERT OR REPLACE INTO evaluations (id, user_id, created_at, overall_score, file_name, payload_json)
@@ -836,7 +842,7 @@ export class AppDatabase {
         evaluation.id,
         userId,
         evaluation.createdAt,
-        evaluation.overallScore,
+        sortableScore,
         evaluation.videoMetadata.fileName,
         JSON.stringify(evaluation)
       );

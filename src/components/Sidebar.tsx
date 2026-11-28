@@ -2,6 +2,11 @@ import { BookOpen, Clock, Film, Home, LogOut, Settings, X } from 'lucide-react';
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
 import type { AuthUser } from '../types/auth.ts';
 import type { ReelEvaluation } from '../types/evaluation.ts';
+import {
+  computeSelectedCharacteristicsAverage,
+  isFullEvaluation,
+  resolveEvaluationScope,
+} from '../utils/evaluationLogic.ts';
 import { ReeViewMark } from './ui/GlassPrimitives.tsx';
 import { RV_EASE, RV_SPRING } from './ui/MotionPrimitives.tsx';
 
@@ -125,6 +130,12 @@ export function Sidebar({
           <ul className="space-y-1">
             {history.slice(0, 8).map((item) => {
               const selected = activeEvaluationId === item.id && activeTab === 'evaluator';
+              const full = isFullEvaluation(item) && item.overallScore !== null;
+              const scope = resolveEvaluationScope(item);
+              const selectedAvg =
+                item.selectedAverageScore ??
+                computeSelectedCharacteristicsAverage(item.variables, scope.selectedVariables);
+
               return (
                 <li key={item.id}>
                   <button
@@ -144,7 +155,9 @@ export function Sidebar({
                         {item.videoMetadata.fileName}
                       </span>
                       <span className="font-mono text-xs font-semibold tabular-nums text-cyan-300 shrink-0">
-                        {item.overallScore.toFixed(2)}/20
+                        {full && item.overallScore !== null
+                          ? `${item.overallScore.toFixed(2)}/20`
+                          : `${selectedAvg.toFixed(2)}/5`}
                       </span>
                     </div>
                     <div className="mt-0.5 flex items-center gap-1.5 text-[11px] text-slate-300 truncate">

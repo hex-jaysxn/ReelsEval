@@ -1,15 +1,20 @@
 import { useRef, useState } from 'react';
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
-import { Film, Play, Sparkles, Trash2, UploadCloud } from 'lucide-react';
+import { Check, Film, Layers, Play, Sparkles, Trash2, UploadCloud } from 'lucide-react';
 import type {
   CampaignObjective,
   EvaluationContext,
+  EvaluationScope,
   ReelVideoMetadata,
   TargetUserPersona,
 } from '../types/evaluation.ts';
 import {
+  ALL_REELS_VARIABLES,
+  STUDY_VARIABLE_META,
+  createFullEvaluationScope,
   formatBytes,
   formatDuration,
+  toggleEvaluationVariable,
   validateVideoMetadata,
 } from '../utils/evaluationLogic.ts';
 import { ActionButton, AlertBanner, GlassPanel } from './ui/GlassPrimitives.tsx';
@@ -20,11 +25,13 @@ interface UploadStageProps {
   previewUrl: string | null;
   videoMetadata: ReelVideoMetadata | null;
   context: EvaluationContext;
+  evaluationScope: EvaluationScope;
   isAnalyzing: boolean;
   onFileSelected: (file: File, meta: ReelVideoMetadata, url: string) => void;
   onClearFile: () => void;
   onUpdateVideoMetrics: (metrics: { durationSeconds?: number; width?: number; height?: number }) => void;
   onChangeContext: (next: EvaluationContext) => void;
+  onChangeEvaluationScope: (next: EvaluationScope) => void;
   onAnalyze: () => void;
   validationError: string | null;
   onValidationError: (msg: string | null) => void;
@@ -50,11 +57,13 @@ export function UploadStage({
   previewUrl,
   videoMetadata,
   context,
+  evaluationScope,
   isAnalyzing,
   onFileSelected,
   onClearFile,
   onUpdateVideoMetrics,
   onChangeContext,
+  onChangeEvaluationScope,
   onAnalyze,
   validationError,
   onValidationError,
@@ -62,6 +71,10 @@ export function UploadStage({
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const reduced = useReducedMotion();
+
+  const selectedCount = evaluationScope.selectedVariables.length;
+  const isFullSelected =
+    evaluationScope.fullEvaluation && selectedCount === ALL_REELS_VARIABLES.length;
 
   function handleIncomingFile(file: File | undefined) {
     if (!file) return;
@@ -240,7 +253,7 @@ export function UploadStage({
           </AnimatePresence>
         </div>
 
-        {/* Right: Evaluation Parameters & Launch CTA */}
+        {/* Right: Evaluation Parameters, Content Scope & Launch CTA */}
         <div className="flex-1 flex flex-col justify-between">
           <div>
             <div className="border-b border-sky-400/15 pb-4">
@@ -248,7 +261,7 @@ export function UploadStage({
                 Evaluate Reels Marketing &amp; Brand Engagement
               </h1>
               <p className="mt-1.5 text-sm text-slate-200 leading-relaxed max-w-2xl">
-                Upload a short-form marketing video for real multimodal analysis using Google Gemini Free Tier. Each of the four Reels Marketing Content variables is scored across Interaction, Participation, and Sharing (2–5 rating scale; 8.00–20.00 overall score).
+                Upload a short-form marketing video for real multimodal analysis using Google Gemini Free Tier. Score selected content characteristics across Interaction, Participation, and Sharing using the official research rubric (2–5 rating scale).
               </p>
             </div>
 
@@ -340,42 +353,142 @@ export function UploadStage({
               />
             </div>
 
-            {/* Rubric preview strip */}
-            <div className="mt-6 pt-5 border-t border-sky-400/15 grid grid-cols-2 sm:grid-cols-4 gap-4">
-              <div>
-                <p className="text-xs font-medium text-slate-300">Informational</p>
-                <p className="mt-0.5 font-mono text-sm font-semibold tabular-nums text-white">
-                  2.00–5.00
-                </p>
-                <p className="text-[11px] text-slate-300 tabular-nums">Mean 3.40 · r=0.372</p>
+            {/* Selective Content-Variable Evaluation Selector */}
+            <div className="mt-6 pt-5 border-t border-sky-400/15">
+              <div className="flex flex-wrap items-baseline justify-between gap-2">
+                <h2 className="font-display text-base font-semibold text-white">
+                  What would you like to evaluate?
+                </h2>
+                <span className="font-mono text-xs text-cyan-300 tabular-nums">
+                  {selectedCount} of 4 selected
+                </span>
               </div>
-              <div>
-                <p className="text-xs font-medium text-slate-300">Entertainment</p>
-                <p className="mt-0.5 font-mono text-sm font-semibold tabular-nums text-white">
-                  2.00–5.00
-                </p>
-                <p className="text-[11px] text-slate-300 tabular-nums">Mean 3.19 · r=0.463</p>
+              <p className="mt-1 text-xs text-slate-200 leading-relaxed">
+                Select one or more content characteristics. ReeView will focus its analysis, scoring, strengths, areas for improvement, and recommendations on your selected characteristics.
+              </p>
+
+              {/* Full Evaluation Option */}
+              <button
+                type="button"
+                aria-pressed={isFullSelected}
+                disabled={isAnalyzing}
+                onClick={() => onChangeEvaluationScope(createFullEvaluationScope())}
+                className={`mt-3.5 w-full text-left rounded-xl border px-4 py-3 flex items-center justify-between gap-3 transition-all duration-150 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400 disabled:opacity-60 disabled:cursor-not-allowed ${
+                  isFullSelected
+                    ? 'border-cyan-400/80 bg-gradient-to-r from-violet-500/20 via-blue-500/18 to-cyan-400/18 shadow-[0_0_20px_rgba(34,211,238,0.18)]'
+                    : 'border-sky-400/25 bg-[#070b28]/70 hover:border-cyan-400/50 hover:bg-[#0e154a]/80'
+                }`}
+              >
+                <div className="flex items-start gap-3 min-w-0">
+                  <div
+                    className={`mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border ${
+                      isFullSelected
+                        ? 'border-cyan-400/60 bg-cyan-500/20 text-cyan-200'
+                        : 'border-sky-400/25 bg-[#0b1038] text-slate-300'
+                    }`}
+                  >
+                    <Layers className="h-4 w-4" aria-hidden="true" />
+                  </div>
+                  <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="font-display text-xs font-bold tracking-wider text-white">
+                        FULL EVALUATION
+                      </span>
+                      <span className="text-[11px] font-mono text-cyan-300 tabular-nums">
+                        8.00–20.00 Official Score
+                      </span>
+                    </div>
+                    <p className="mt-0.5 text-xs text-slate-200">
+                      Evaluate all four content characteristics using the complete assessment.
+                    </p>
+                  </div>
+                </div>
+
+                <span
+                  aria-hidden="true"
+                  className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full border transition-colors ${
+                    isFullSelected
+                      ? 'border-cyan-300 bg-cyan-400 text-[#05081f]'
+                      : 'border-sky-400/35 bg-[#090e30] text-transparent'
+                  }`}
+                >
+                  <Check className="h-3.5 w-3.5 stroke-[2.5]" />
+                </span>
+              </button>
+
+              {/* Four Individual Characteristic Cards */}
+              <div
+                role="group"
+                aria-label="Content characteristics to evaluate"
+                className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-3"
+              >
+                {ALL_REELS_VARIABLES.map((key) => {
+                  const meta = STUDY_VARIABLE_META[key];
+                  const isSelected = evaluationScope.selectedVariables.includes(key);
+                  return (
+                    <button
+                      key={key}
+                      type="button"
+                      aria-pressed={isSelected}
+                      disabled={isAnalyzing}
+                      onClick={() =>
+                        onChangeEvaluationScope(toggleEvaluationVariable(evaluationScope, key))
+                      }
+                      className={`text-left rounded-xl border p-3.5 flex flex-col justify-between gap-2 min-h-[96px] transition-all duration-150 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400 disabled:opacity-60 disabled:cursor-not-allowed ${
+                        isSelected
+                          ? 'border-cyan-400/75 bg-cyan-500/12 shadow-[0_0_16px_rgba(34,211,238,0.14)]'
+                          : 'border-sky-400/20 bg-[#070b28]/60 opacity-80 hover:opacity-100 hover:border-sky-400/45 hover:bg-[#0c1240]/75'
+                      }`}
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <div>
+                          <span className="font-display text-xs font-bold tracking-wider text-white">
+                            {meta.selectionTitle}
+                          </span>
+                          <p className="mt-1 text-xs text-slate-200 leading-snug">
+                            {meta.selectionDescription}
+                          </p>
+                        </div>
+                        <span
+                          aria-hidden="true"
+                          className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border transition-colors ${
+                            isSelected
+                              ? 'border-cyan-300 bg-cyan-400 text-[#05081f]'
+                              : 'border-sky-400/35 bg-[#090e30] text-transparent'
+                          }`}
+                        >
+                          <Check className="h-3 w-3 stroke-[2.5]" />
+                        </span>
+                      </div>
+                      <p className="text-[11px] font-mono text-slate-300 tabular-nums">
+                        2.00–5.00 · Mean {meta.surveyMean.toFixed(2)} · r={meta.correlationLabel}
+                      </p>
+                    </button>
+                  );
+                })}
               </div>
-              <div>
-                <p className="text-xs font-medium text-slate-300">Trendiness</p>
-                <p className="mt-0.5 font-mono text-sm font-semibold tabular-nums text-white">
-                  2.00–5.00
+
+              {selectedCount === 0 && (
+                <p className="mt-2.5 text-xs font-medium text-amber-300">
+                  Please select at least one content characteristic to evaluate.
                 </p>
-                <p className="text-[11px] text-slate-300 tabular-nums">Mean 3.43 · r=0.306</p>
-              </div>
-              <div>
-                <p className="text-xs font-medium text-slate-300">Relatable</p>
-                <p className="mt-0.5 font-mono text-sm font-semibold tabular-nums text-white">
-                  2.00–5.00
-                </p>
-                <p className="text-[11px] text-slate-300 tabular-nums">Mean 3.31 · r=0.554</p>
-              </div>
+              )}
             </div>
           </div>
 
-          <div className="mt-8 pt-5 border-t border-sky-400/15 flex flex-wrap items-center justify-between gap-4">
+          <div className="mt-7 pt-5 border-t border-sky-400/15 flex flex-wrap items-center justify-between gap-4">
             <div className="text-xs text-slate-300">
-              <span>Each variable averaged across Interaction, Participation &amp; Sharing (8.00–20.00 total)</span>
+              {isFullSelected ? (
+                <span>
+                  Each variable averaged across Interaction, Participation &amp; Sharing (8.00–20.00 official total)
+                </span>
+              ) : selectedCount > 0 ? (
+                <span>
+                  Partial scope: {selectedCount} of 4 characteristics evaluated (2.00–5.00 scale per characteristic)
+                </span>
+              ) : (
+                <span>Select 1–4 content characteristics above before running analysis</span>
+              )}
             </div>
 
             <ActionButton

@@ -4,6 +4,8 @@ import {
   buildReportMarkdown,
   formatBytes,
   formatDuration,
+  getEvaluatedVariableList,
+  isFullEvaluation,
 } from '../utils/evaluationLogic.ts';
 import { ActionButton, GlassPanel } from './ui/GlassPrimitives.tsx';
 
@@ -25,6 +27,9 @@ function triggerDownload(content: string, filename: string, mimeType: string) {
 
 export function ReportActions({ evaluation }: ReportActionsProps) {
   const baseName = evaluation.videoMetadata.fileName.replace(/\.[^/.]+$/, '') || 'reel-evaluation';
+  const full = isFullEvaluation(evaluation);
+  const evaluatedVars = getEvaluatedVariableList(evaluation);
+  const evaluatedNames = evaluatedVars.map((v) => v.label).join(', ');
 
   function handleDownloadMarkdown() {
     const md = buildReportMarkdown(evaluation);
@@ -63,6 +68,23 @@ export function ReportActions({ evaluation }: ReportActionsProps) {
             ·
           </span>
           <span className="font-mono text-cyan-300">{evaluation.modelUsed}</span>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs">
+          <span className="font-medium text-slate-300">Evaluation Scope:</span>
+          <span className="font-semibold text-cyan-300">
+            {full
+              ? 'Full evaluation — 4 of 4 content characteristics'
+              : `${evaluatedVars.length} of 4 content characteristics evaluated`}
+          </span>
+          {!full && evaluatedNames && (
+            <>
+              <span className="text-slate-500" aria-hidden="true">
+                ·
+              </span>
+              <span className="text-slate-200">{evaluatedNames}</span>
+            </>
+          )}
         </div>
       </div>
 

@@ -1,30 +1,43 @@
 import { useEffect, useState } from 'react';
 import { motion, useReducedMotion } from 'motion/react';
 import { Check, Loader2 } from 'lucide-react';
+import type { EvaluationScope } from '../types/evaluation.ts';
+import { STUDY_VARIABLE_META, createFullEvaluationScope } from '../utils/evaluationLogic.ts';
 import { ElevatedGlassPanel, ProgressBar, SkeletonCard } from './ui/GlassPrimitives.tsx';
 import { RV_SPRING } from './ui/MotionPrimitives.tsx';
 
 interface ProcessingStateProps {
   fileName: string;
+  evaluationScope?: EvaluationScope;
 }
 
-const STEPS = [
-  'Uploading video stream to ReeView evaluation server',
-  'Inspecting visual frames, audio pacing, and on-screen cues via Gemini',
-  'Scoring 4×3 Content & Engagement matrix (Interaction, Participation, Sharing)',
-  'Calculating 8.00–20.00 effectiveness score & development recommendations',
-];
-
-export function ProcessingState({ fileName }: ProcessingStateProps) {
+export function ProcessingState({ fileName, evaluationScope }: ProcessingStateProps) {
   const [activeStep, setActiveStep] = useState(0);
   const reduced = useReducedMotion();
 
+  const scope = evaluationScope ?? createFullEvaluationScope();
+  const count = scope.selectedVariables.length;
+  const selectedNames = scope.selectedVariables
+    .map((key) => STUDY_VARIABLE_META[key].shortLabel)
+    .join(', ');
+
+  const steps = [
+    'Uploading video stream to ReeView evaluation server',
+    'Inspecting visual frames, audio pacing, and on-screen cues via Gemini',
+    scope.fullEvaluation
+      ? 'Scoring 4×3 Content & Engagement matrix (Interaction, Participation, Sharing)'
+      : `Scoring ${count}×3 selected rubric matrix (${selectedNames})`,
+    scope.fullEvaluation
+      ? 'Calculating 8.00–20.00 effectiveness score & development recommendations'
+      : 'Calculating selected-characteristic averages (2.00–5.00) & scoped recommendations',
+  ];
+
   useEffect(() => {
     const interval = window.setInterval(() => {
-      setActiveStep((prev) => (prev < STEPS.length - 1 ? prev + 1 : prev));
+      setActiveStep((prev) => (prev < steps.length - 1 ? prev + 1 : prev));
     }, 2600);
     return () => window.clearInterval(interval);
-  }, []);
+  }, [steps.length]);
 
   return (
     <div className="space-y-6 rv-animate-in">
@@ -42,23 +55,24 @@ export function ProcessingState({ fileName }: ProcessingStateProps) {
               </h2>
             </div>
             <span className="font-mono text-xs text-cyan-300 tabular-nums">
-              Step {activeStep + 1} / {STEPS.length}
+              Step {activeStep + 1} / {steps.length}
             </span>
           </div>
 
           <p className="text-sm text-slate-200">
-            Evaluating <span className="font-medium text-white">{fileName}</span> with Google Gemini Free Tier. Larger clips may take 15–30 seconds.
+            Evaluating <span className="font-medium text-white">{fileName}</span>{' '}
+            ({scope.fullEvaluation ? 'Full evaluation — 4 of 4 characteristics' : `${count} of 4 characteristics: ${selectedNames}`}) with Google Gemini Free Tier. Larger clips may take 15–30 seconds.
           </p>
 
           <ProgressBar
             value={activeStep + 1}
-            max={STEPS.length}
+            max={steps.length}
             colorClass="bg-gradient-to-r from-violet-500 via-blue-500 to-cyan-400"
             label="Analysis progress"
           />
 
           <ol className="pt-2 space-y-3">
-            {STEPS.map((label, idx) => {
+            {steps.map((label, idx) => {
               const done = idx < activeStep;
               const current = idx === activeStep;
               return (

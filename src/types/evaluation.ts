@@ -19,6 +19,11 @@ export type EffectivenessLevel =
 
 export type ReelsVariableKey = 'informational' | 'entertainment' | 'trendiness' | 'relatable';
 
+export interface EvaluationScope {
+  selectedVariables: ReelsVariableKey[];
+  fullEvaluation: boolean;
+}
+
 export interface EngagementDimensionRating {
   score: number; // Integer 2 to 5 per PDF rubric
   rationale: string;
@@ -38,15 +43,10 @@ export interface VariableAssessment {
   observedCues: string[];
 }
 
-export interface ReelsMarketingVariables {
-  informational: VariableAssessment;
-  entertainment: VariableAssessment;
-  trendiness: VariableAssessment;
-  relatable: VariableAssessment;
-}
+export type ReelsMarketingVariables = Partial<Record<ReelsVariableKey, VariableAssessment>>;
 
 export interface BrandEngagementDimensionSummary {
-  interactionMean: number; // Mean across the 4 content variables (2.00 - 5.00)
+  interactionMean: number; // Mean across the evaluated content variables (2.00 - 5.00)
   participationMean: number;
   sharingMean: number;
   overallEngagementMean: number;
@@ -96,6 +96,12 @@ export interface EvaluationContext {
   brandContext?: string;
 }
 
+export interface ScoreTierSummary {
+  level: EffectivenessLevel;
+  summary: string;
+  tone: 'positive' | 'moderate' | 'caution' | 'critical';
+}
+
 export interface ReelEvaluation {
   schemaVersion: 2;
   id: string;
@@ -103,13 +109,13 @@ export interface ReelEvaluation {
   modelUsed: string;
   videoMetadata: ReelVideoMetadata;
   context: EvaluationContext;
+  evaluationScope?: EvaluationScope;
   executiveSummary: string;
-  overallScore: number; // Sum of 4 variable averages: 8.00 to 20.00
-  scoreTier: {
-    level: EffectivenessLevel;
-    summary: string;
-    tone: 'positive' | 'moderate' | 'caution' | 'critical';
-  };
+  overallScore: number | null; // Sum of 4 variable averages (8.00 to 20.00) ONLY when fullEvaluation is true
+  scoreTier: ScoreTierSummary | null; // Official 20-point classification ONLY when fullEvaluation is true
+  selectedAverageScore?: number; // Mean of evaluated characteristic averages (2.00 to 5.00)
+  selectedEffectivenessLevel?: EffectivenessLevel;
+  selectedEffectivenessInterpretation?: string;
   variables: ReelsMarketingVariables;
   brandEngagementSummary: BrandEngagementDimensionSummary;
   strengths: string[];
@@ -122,6 +128,7 @@ export interface ReelEvaluation {
 export interface ApiErrorPayload {
   error: {
     code:
+      | 'INVALID_INPUT'
       | 'INVALID_FILE'
       | 'UNSUPPORTED_VIDEO'
       | 'FILE_TOO_LARGE'

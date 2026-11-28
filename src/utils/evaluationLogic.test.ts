@@ -1,19 +1,30 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
+  EMPTY_SCOPE_VALIDATION_MESSAGE,
   MAX_VIDEO_SIZE_BYTES,
   buildReportMarkdown,
   buildVariableAssessment,
   clampDimensionRating,
   computeEngagementSummary,
   computeOverallScore,
+  computeSelectedCharacteristicsAverage,
   computeVariableAverage,
+  createFullEvaluationScope,
   getScoreTier,
   getVariableEffectiveness,
+  isFullEvaluation,
+  normalizeEvaluationScope,
   parseEvaluationApiResponse,
+  parseEvaluationScopePayload,
+  resolveEvaluationScope,
   resolveVideoMimeType,
+  sanitizeEvaluationByScope,
+  toggleEvaluationVariable,
+  validateEvaluationScope,
   validateVideoMetadata,
 } from './evaluationLogic.ts';
+import { buildEvaluationPromptAndSchema } from '../server/geminiService.ts';
 import type { ReelEvaluation } from '../types/evaluation.ts';
 
 test('validateVideoMetadata and resolveVideoMimeType handle valid and invalid files', () => {
@@ -278,4 +289,272 @@ test('parseEvaluationApiResponse diagnoses status 200 HTML/empty/malformed and v
   if (apiErrRes.ok === false) {
     assert.equal(apiErrRes.error.code, 'INVALID_API_KEY');
   }
+});
+
+test('selective evaluation scope helpers handle defaults, toggling, canonical ordering, and empty validation', () => {
+  const full = createFullEvaluationScope();
+  assert.deepEqual(full.selectedVariables, [
+    'informational',
+    'entertainment',
+    'trendiness',
+    'relatable',
+  ]);
+  assert.equal(full.fullEvaluation, true);
+
+  // Deselecting 1 from Full Evaluation turns off fullEvaluation and keeps remaining 3
+  const afterDeselectOne = toggleEvaluationVariable(full, 'relatable');
+  assert.equal(afterDeselectOne.fullEvaluation, false);
+  assert.deepEqual(afterDeselectOne.selectedVariables, [
+    'informational',
+    'entertainment',
+    'trendiness',
+  ]);
+
+  // Re-selecting the 4th automatically marks fullEvaluation: true
+  const afterReselect = toggleEvaluationVariable(afterDeselectOne, 'relatable');
+  assert.equal(afterReselect.fullEvaluation, true);
+  assert.equal(afterReselect.selectedVariables.length, 4);
+
+  // Empty selection fails with exact validation message
+  const emptyCheck = validateEvaluationScope({ selectedVariables: [], fullEvaluation: false });
+  assert.equal(emptyCheck.valid, false);
+  assert.equal(emptyCheck.errorMessage, EMPTY_SCOPE_VALIDATION_MESSAGE);
+
+  // Payload parser accepts both selectedVariables and variables alias, and rejects empty array
+  const aliasParsed = parseEvaluationScopePayload(
+    JSON.stringify({ variables: ['relatable', 'entertainment', 'relatable'], fullEvaluation: false })
+  );
+  assert.equal(aliasParsed.valid, true);
+  assert.deepEqual(aliasParsed.scope, {
+    selectedVariables: ['entertainment', 'relatable'],
+    fullEvaluation: false,
+  });
+
+  const emptyPayload = parseEvaluationScopePayload(
+    JSON.stringify({ selectedVariables: [], fullEvaluation: false })
+  );
+  assert.equal(emptyPayload.valid, false);
+  assert.equal(emptyPayload.errorMessage, EMPTY_SCOPE_VALIDATION_MESSAGE);
+
+  const normalizedMixed = normalizeEvaluationScope({
+    selectedVariables: ['trendiness', 'entertainment'],
+    fullEvaluation: true,
+  });
+  assert.equal(normalizedMixed.fullEvaluation, false);
+});
+
+test('partial evaluations (1, 2, 3 variables) strip unselected fields and omit /20 official score', () => {
+  const informational = buildVariableAssessment({
+    key: 'informational',
+    interaction: { score: 4, rationale: 'Good.' },
+    participation: { score: 4, rationale: 'Good.' },
+    sharing: { score: 4, rationale: 'Good.' },
+    observedCues: ['Specs'],
+  });
+  const entertainment = buildVariableAssessment({
+    key: 'entertainment',
+    interaction: { score: 4, rationale: 'Fun.' },
+    participation: { score: 5, rationale: 'Challenge.' },
+    sharing: { score: 4, rationale: 'Shareable.' },
+    observedCues: ['Hook'],
+  });
+  const trendiness = buildVariableAssessment({
+    key: 'trendiness',
+    interaction: { score: 4, rationale: 'Current.' },
+    participation: { score: 3, rationale: 'Moderate.' },
+    sharing: { score: 4, rationale: 'Popular.' },
+    observedCues: ['Audio'],
+  });
+  const relatable = buildVariableAssessment({
+    key: 'relatable',
+    interaction: { score: 4, rationale: 'Familiar.' },
+    participation: { score: 3, rationale: 'Some prompts.' },
+    sharing: { score: 4, rationale: 'Relatable.' },
+    observedCues: ['Scene'],
+  });
+
+  // Scenario 1: 1 variable (Entertainment only) with rogue AI field present
+  const singleEval = sanitizeEvaluationByScope({
+    schemaVersion: 2,
+    id: 'single-1',
+    createdAt: '2026-11-28T00:00:00.000Z',
+    modelUsed: 'gemini-4-hydrogen',
+    videoMetadata: { fileName: 'fun.mp4', fileSizeBytes: 1_000_000, mimeType: 'video/mp4' },
+    context: { targetPersona: 'Gen Z Consumers', campaignObjective: 'Brand Awareness' },
+    evaluationScope: { selectedVariables: ['entertainment'], fullEvaluation: false },
+    executiveSummary: 'Strong entertainment hook.',
+    overallScore: 15, // Should be wiped to null!
+    scoreTier: getScoreTier(15), // Should be wiped to null!
+    variables: { entertainment, informational }, // informational should be stripped!
+    brandEngagementSummary: computeEngagementSummary({ entertainment }),
+    strengths: ['Entertaining opening'],
+    areasForImprovement: ['Slightly sharper punchline'],
+    developmentRecommendations: [
+      {
+        priority: 'High',
+        targetVariable: 'Entertainment Content',
+        targetDimension: 'Interaction',
+        recommendation: 'Tighten beat timing.',
+        expectedImpact: 'Boosts reactions.',
+      },
+      {
+        priority: 'Low',
+        targetVariable: 'Informational Content', // Unselected: must be stripped!
+        targetDimension: 'Sharing',
+        recommendation: 'Add specs.',
+        expectedImpact: 'More saves.',
+      },
+    ],
+    predictedAudienceResponse: [],
+    marketingStrategyRecommendations: [],
+  });
+
+  assert.equal(isFullEvaluation(singleEval), false);
+  assert.equal(singleEval.overallScore, null);
+  assert.equal(singleEval.scoreTier, null);
+  assert.equal(singleEval.selectedAverageScore, 4.33);
+  assert.equal(singleEval.selectedEffectivenessLevel, 'Very Effective');
+  assert.equal(singleEval.variables.entertainment?.averageScore, 4.33);
+  assert.equal(singleEval.variables.informational, undefined);
+  assert.equal(singleEval.developmentRecommendations.length, 1);
+  assert.equal(singleEval.developmentRecommendations[0].targetVariable, 'Entertainment Content');
+
+  const singleMd = buildReportMarkdown(singleEval);
+  assert.match(singleMd, /1 of 4 content characteristics evaluated/);
+  assert.match(singleMd, /Selected Characteristics Average: 4\.33 \/ 5\.00/);
+  assert.doesNotMatch(singleMd, /\/ 20/);
+
+  // Scenario 2: 2 variables (Entertainment 4.33 + Relatable 3.67 => 4.00)
+  const twoVarAvg = computeSelectedCharacteristicsAverage(
+    { entertainment, relatable },
+    ['entertainment', 'relatable']
+  );
+  assert.equal(twoVarAvg, 4.0);
+  const twoSummary = computeEngagementSummary(
+    { entertainment, relatable },
+    ['entertainment', 'relatable']
+  );
+  assert.equal(twoSummary.interactionMean, 4.0);
+  assert.equal(twoSummary.participationMean, 4.0);
+  assert.equal(twoSummary.sharingMean, 4.0);
+
+  // Scenario 3: 3 variables (Informational 4.00 + Entertainment 4.33 + Trendiness 3.67 => 4.00)
+  const threeVarAvg = computeSelectedCharacteristicsAverage(
+    { informational, entertainment, trendiness },
+    ['informational', 'entertainment', 'trendiness']
+  );
+  assert.equal(threeVarAvg, 4.0);
+
+  // Legacy Full Evaluation compatibility (no evaluationScope property)
+  const legacyFull: ReelEvaluation = {
+    schemaVersion: 2,
+    id: 'legacy-1',
+    createdAt: '2026-11-23T00:00:00.000Z',
+    modelUsed: 'gemini-4-hydrogen',
+    videoMetadata: { fileName: 'legacy.mp4', fileSizeBytes: 1_000_000, mimeType: 'video/mp4' },
+    context: { targetPersona: 'General Audience', campaignObjective: 'Brand Awareness' },
+    executiveSummary: 'Full legacy evaluation.',
+    overallScore: computeOverallScore({ informational, entertainment, trendiness, relatable }),
+    scoreTier: getScoreTier(15.67),
+    variables: { informational, entertainment, trendiness, relatable },
+    brandEngagementSummary: computeEngagementSummary({
+      informational,
+      entertainment,
+      trendiness,
+      relatable,
+    }),
+    strengths: [],
+    areasForImprovement: [],
+    developmentRecommendations: [],
+    predictedAudienceResponse: [],
+    marketingStrategyRecommendations: [],
+  };
+  assert.deepEqual(resolveEvaluationScope(legacyFull), createFullEvaluationScope());
+  assert.equal(isFullEvaluation(legacyFull), true);
+});
+
+test('buildEvaluationPromptAndSchema dynamically restricts prompt rubric and JSON schema per selected scope', () => {
+  const ctx = {
+    targetPersona: 'Gen Z Consumers' as const,
+    campaignObjective: 'Brand Awareness' as const,
+  };
+
+  // 1 variable: Entertainment
+  const oneVar = buildEvaluationPromptAndSchema({
+    evaluationScope: { selectedVariables: ['entertainment'], fullEvaluation: false },
+    context: ctx,
+    videoMetadata: { fileName: 'clip.mp4' },
+  });
+  assert.match(oneVar.systemInstruction, /B\. ENTERTAINMENT CONTENT/);
+  assert.doesNotMatch(oneVar.systemInstruction, /A\. INFORMATIONAL CONTENT/);
+  assert.doesNotMatch(oneVar.systemInstruction, /C\. TRENDINESS/);
+  assert.doesNotMatch(oneVar.systemInstruction, /D\. RELATABLE CONTENT/);
+  assert.match(oneVar.systemInstruction, /Evaluate ONLY Entertainment Content/);
+  assert.deepEqual(oneVar.responseSchema.properties.variables.required, ['entertainment']);
+  assert.deepEqual(Object.keys(oneVar.responseSchema.properties.variables.properties), [
+    'entertainment',
+  ]);
+  assert.deepEqual(
+    oneVar.responseSchema.properties.developmentRecommendations.items.properties.targetVariable.enum,
+    ['Entertainment Content']
+  );
+
+  // 2 variables: Entertainment + Relatable
+  const twoVar = buildEvaluationPromptAndSchema({
+    evaluationScope: { selectedVariables: ['entertainment', 'relatable'], fullEvaluation: false },
+    context: ctx,
+    videoMetadata: { fileName: 'clip.mp4' },
+  });
+  assert.deepEqual(twoVar.responseSchema.properties.variables.required, [
+    'entertainment',
+    'relatable',
+  ]);
+  assert.match(twoVar.systemInstruction, /B\. ENTERTAINMENT CONTENT/);
+  assert.match(twoVar.systemInstruction, /D\. RELATABLE CONTENT/);
+  assert.doesNotMatch(twoVar.systemInstruction, /A\. INFORMATIONAL CONTENT/);
+  assert.doesNotMatch(twoVar.systemInstruction, /C\. TRENDINESS/);
+
+  // 3 variables: Informational + Entertainment + Trendiness
+  const threeVar = buildEvaluationPromptAndSchema({
+    evaluationScope: {
+      selectedVariables: ['informational', 'entertainment', 'trendiness'],
+      fullEvaluation: false,
+    },
+    context: ctx,
+    videoMetadata: { fileName: 'clip.mp4' },
+  });
+  assert.deepEqual(threeVar.responseSchema.properties.variables.required, [
+    'informational',
+    'entertainment',
+    'trendiness',
+  ]);
+  assert.doesNotMatch(threeVar.systemInstruction, /D\. RELATABLE CONTENT/);
+
+  // 4 variables: Full Evaluation
+  const fullVar = buildEvaluationPromptAndSchema({
+    evaluationScope: createFullEvaluationScope(),
+    context: ctx,
+    videoMetadata: { fileName: 'clip.mp4' },
+  });
+  assert.deepEqual(fullVar.responseSchema.properties.variables.required, [
+    'informational',
+    'entertainment',
+    'trendiness',
+    'relatable',
+  ]);
+  assert.match(fullVar.systemInstruction, /A\. INFORMATIONAL CONTENT/);
+  assert.match(fullVar.systemInstruction, /B\. ENTERTAINMENT CONTENT/);
+  assert.match(fullVar.systemInstruction, /C\. TRENDINESS/);
+  assert.match(fullVar.systemInstruction, /D\. RELATABLE CONTENT/);
+
+  // Empty selection throws validation error
+  assert.throws(
+    () =>
+      buildEvaluationPromptAndSchema({
+        evaluationScope: { selectedVariables: [], fullEvaluation: false },
+        context: ctx,
+        videoMetadata: { fileName: 'clip.mp4' },
+      }),
+    /Please select at least one content characteristic to evaluate\./
+  );
 });

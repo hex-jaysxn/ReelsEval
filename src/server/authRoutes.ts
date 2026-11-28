@@ -4,6 +4,7 @@ import type { ApiErrorPayload } from '../types/evaluation.ts';
 import {
   canDisconnectProvider,
   hashPassword,
+  isHttpsRequestValues,
   isValidEmail,
   maskEmailAddress,
   normalizeEmail,
@@ -53,10 +54,12 @@ export function extractSessionToken(req: express.Request): string | null {
 }
 
 function isHttpsRequest(req: express.Request): boolean {
-  const forwardedProto = (req.headers['x-forwarded-proto'] as string | undefined)
-    ?.split(',')[0]
-    ?.trim();
-  return req.secure || forwardedProto === 'https';
+  return isHttpsRequestValues({
+    secure: req.secure,
+    forwardedProto: req.headers['x-forwarded-proto'] as string | undefined,
+    forwardedSsl: req.headers['x-forwarded-ssl'] as string | undefined,
+    originHeader: req.headers.origin as string | undefined,
+  });
 }
 
 function setSessionCookie(
@@ -65,7 +68,7 @@ function setSessionCookie(
   rawToken: string
 ): void {
   const https = isHttpsRequest(req);
-  const maxAgeSeconds = 7 * 24 * 60 * 60;
+  const maxAgeSeconds = 30 * 24 * 60 * 60;
   const parts = [
     `${SESSION_COOKIE_NAME}=${encodeURIComponent(rawToken)}`,
     'Path=/',
@@ -683,6 +686,7 @@ export function createAuthRouter(db: AppDatabase): express.Router {
 
   router.get('/google/url', (req, res) => {
     const mode = req.query.mode === 'link' ? 'link' : 'login';
+    const flowType = req.query.flowType === 'redirect' ? 'redirect' : 'popup';
     const sessionUser = getAuthenticatedUserFromRequest(req, db);
     if (mode === 'link' && !sessionUser) {
       res.status(401).json({
@@ -691,14 +695,19 @@ export function createAuthRouter(db: AppDatabase): express.Router {
       return;
     }
 
+    const candidateOpenerOrigin =
+      typeof req.query.openerOrigin === 'string' ? req.query.openerOrigin : undefined;
+
     try {
-      const url = buildGoogleAuthUrl({
+      const { url, callbackOrigin, flowId } = buildGoogleAuthUrl({
         req,
         db,
         mode,
         sessionUserId: sessionUser?.id ?? null,
+        candidateOpenerOrigin,
+        flowType,
       });
-      res.json({ url });
+      res.json({ url, callbackOrigin, flowId });
     } catch (err) {
       if (err instanceof OAuthConfigError) {
         res.status(err.statusCode).json({ error: { code: err.code, message: err.message } });
@@ -716,16 +725,26 @@ export function createAuthRouter(db: AppDatabase): express.Router {
     const oauthError = typeof req.query.error === 'string' ? req.query.error : '';
 
     if (oauthError || !code || !state) {
+      const stateRecord = state ? db.consumeOAuthState(state, 'google') : null;
+      const errorMessage = oauthError
+        ? `Google sign-in was cancelled or denied (${oauthError}).`
+        : 'Missing authorization code from Google.';
+      db.completeOAuthFlowResult({
+        flowIdHash: stateRecord?.flow_id_hash ?? null,
+        status: 'error',
+        errorMessage,
+      });
       res
         .status(400)
         .send(
           renderOAuthPopupHtml({
             success: false,
             provider: 'google',
-            mode: 'login',
-            errorMessage: oauthError
-              ? `Google sign-in was cancelled or denied (${oauthError}).`
-              : 'Missing authorization code from Google.',
+            mode: stateRecord?.mode ?? 'login',
+            targetOrigin: stateRecord?.opener_origin ?? null,
+            flowIdHash: stateRecord?.flow_id_hash ?? null,
+            flowType: stateRecord?.flow_type ?? 'popup',
+            errorMessage,
           })
         );
       return;
@@ -739,12 +758,21 @@ export function createAuthRouter(db: AppDatabase): express.Router {
         setSessionCookie(req, res, token);
         handoffCode = db.createOAuthHandoff(result.userId);
       }
+      db.completeOAuthFlowResult({
+        flowIdHash: result.flowIdHash,
+        status: 'success',
+        userId: result.userId,
+        handoffCode,
+      });
       res.send(
         renderOAuthPopupHtml({
           success: true,
           provider: 'google',
           mode: result.mode,
           handoffCode,
+          targetOrigin: result.openerOrigin,
+          flowIdHash: result.flowIdHash,
+          flowType: result.flowType,
         })
       );
     } catch (err) {
@@ -752,36 +780,116 @@ export function createAuthRouter(db: AppDatabase): express.Router {
         err instanceof OAuthConfigError
           ? err.message
           : 'Google authentication could not be completed.';
+      const targetOrigin =
+        err instanceof OAuthConfigError ? (err.openerOrigin ?? null) : null;
+      const flowIdHash =
+        err instanceof OAuthConfigError ? (err.flowIdHash ?? null) : null;
+      const flowType =
+        err instanceof OAuthConfigError ? (err.flowType ?? 'popup') : 'popup';
+      db.completeOAuthFlowResult({
+        flowIdHash,
+        status: 'error',
+        errorMessage: message,
+      });
       res.status(400).send(
         renderOAuthPopupHtml({
           success: false,
           provider: 'google',
           mode: 'login',
+          targetOrigin,
+          flowIdHash,
+          flowType,
           errorMessage: message,
         })
       );
     }
   });
 
-  router.post('/oauth/complete', verifySameOriginMutation, (req, res) => {
-    const handoffCode =
-      typeof req.body?.handoffCode === 'string' ? req.body.handoffCode.trim() : '';
-    if (!handoffCode) {
-      res.status(400).json({ error: { code: 'INVALID_HANDOFF', message: 'Missing OAuth handoff code.' } });
+  router.get('/oauth/flow-status', (req, res) => {
+    const flowHash = typeof req.query.flowHash === 'string' ? req.query.flowHash.trim() : '';
+    if (flowHash) {
+      res.json({ claimed: db.isOAuthFlowClaimedByHash(flowHash) });
       return;
     }
 
-    const userId = db.consumeOAuthHandoff(handoffCode);
-    if (!userId) {
-      res.status(401).json({
-        error: { code: 'INVALID_HANDOFF', message: 'OAuth session expired. Please try signing in again.' },
+    const flowId = typeof req.query.flowId === 'string' ? req.query.flowId.trim() : '';
+    if (!flowId) {
+      res.status(400).json({ error: { code: 'INVALID_FLOW', message: 'Missing flow identifier.' } });
+      return;
+    }
+
+    const flow = db.getOAuthFlowStatus(flowId);
+    if (!flow) {
+      res.json({ status: 'expired', claimed: false });
+      return;
+    }
+
+    res.json({
+      status: flow.status,
+      mode: flow.mode,
+      claimed: flow.claimed === 1,
+      error: flow.status === 'error' ? flow.error_message : null,
+    });
+  });
+
+  router.post('/oauth/complete', verifySameOriginMutation, (req, res) => {
+    const handoffCode =
+      typeof req.body?.handoffCode === 'string' ? req.body.handoffCode.trim() : '';
+    const flowId = typeof req.body?.flowId === 'string' ? req.body.flowId.trim() : '';
+
+    if (handoffCode) {
+      const userId = db.consumeOAuthHandoff(handoffCode);
+      if (!userId) {
+        res.status(401).json({
+          error: {
+            code: 'INVALID_HANDOFF',
+            message: 'OAuth session expired. Please try signing in again.',
+          },
+        });
+        return;
+      }
+      if (flowId) {
+        db.markOAuthFlowClaimed(flowId);
+      }
+      const sessionToken = db.createSession(userId);
+      setSessionCookie(req, res, sessionToken);
+      res.json({ user: db.getAuthUserProfile(userId), sessionToken });
+      return;
+    }
+
+    if (!flowId) {
+      res.status(400).json({
+        error: { code: 'INVALID_HANDOFF', message: 'Missing OAuth handoff code.' },
       });
       return;
     }
 
-    const sessionToken = db.createSession(userId);
+    const claimed = db.claimOAuthFlow(flowId);
+    if (!claimed) {
+      res.status(401).json({
+        error: {
+          code: 'INVALID_HANDOFF',
+          message: 'OAuth session expired or already claimed. Please try signing in again.',
+        },
+      });
+      return;
+    }
+
+    if (claimed.mode === 'link') {
+      const sessionUser = getAuthenticatedUserFromRequest(req, db);
+      if (!sessionUser || sessionUser.id !== claimed.userId) {
+        res.status(401).json({
+          error: { code: 'UNAUTHORIZED', message: 'Sign in required to link account.' },
+        });
+        return;
+      }
+      res.json({ user: db.getAuthUserProfile(claimed.userId), linked: true });
+      return;
+    }
+
+    const sessionToken = db.createSession(claimed.userId);
     setSessionCookie(req, res, sessionToken);
-    res.json({ user: db.getAuthUserProfile(userId), sessionToken });
+    res.json({ user: db.getAuthUserProfile(claimed.userId), sessionToken });
   });
 
   router.delete('/providers/:provider', verifySameOriginMutation, (req, res) => {

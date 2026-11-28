@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Menu, PlusCircle, RefreshCw } from 'lucide-react';
 import { AnimatePresence, MotionConfig, useMotionValueEvent, useScroll } from 'motion/react';
 import type { AuthProviderAvailability, AuthUser } from './types/auth.ts';
@@ -35,16 +35,23 @@ import {
 export default function App() {
   const [authUser, setAuthUser] = useState<AuthUser | null>(null);
   const [sessionToken, setSessionToken] = useState<string | null>(null);
+  const sessionTokenRef = useRef<string | null>(null);
+  const oauthHandoffConsumedRef = useRef(false);
   const [authLoading, setAuthLoading] = useState(true);
   const [providerAvailability, setProviderAvailability] =
     useState<AuthProviderAvailability | null>(null);
   const [proxyBlockedNotice, setProxyBlockedNotice] = useState<string | null>(null);
+
+  useEffect(() => {
+    sessionTokenRef.current = sessionToken;
+  }, [sessionToken]);
 
   const [initialParams] = useState(() => {
     const params = new URLSearchParams(window.location.search);
     return {
       resetToken: params.get('resetToken'),
       oauthHandoff: params.get('oauthHandoff'),
+      oauthLinked: params.get('oauthLinked'),
       authError: params.get('authError'),
       autostart: params.get('autostart'),
     };
@@ -60,7 +67,9 @@ export default function App() {
   );
   const [authInitialMode, setAuthInitialMode] = useState<'login' | 'register'>('login');
 
-  const [activeTab, setActiveTab] = useState<ActiveTab>('evaluator');
+  const [activeTab, setActiveTab] = useState<ActiveTab>(
+    initialParams.oauthLinked ? 'settings' : 'evaluator'
+  );
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const { scrollY } = useScroll();
   const [workspaceScrolled, setWorkspaceScrolled] = useState(false);
@@ -113,7 +122,8 @@ export default function App() {
   const loadUserEvaluations = useCallback(
     async (tokenOverride?: string | null) => {
       const headers: Record<string, string> = { Accept: 'application/json' };
-      const effectiveToken = tokenOverride !== undefined ? tokenOverride : sessionToken;
+      const effectiveToken =
+        tokenOverride !== undefined ? tokenOverride : sessionTokenRef.current;
       if (effectiveToken) {
         headers.Authorization = `Bearer ${effectiveToken}`;
       }
@@ -132,7 +142,7 @@ export default function App() {
         // Ignore transient history load error
       }
     },
-    [sessionToken]
+    []
   );
 
   useEffect(() => {
@@ -161,7 +171,9 @@ export default function App() {
           setProxyBlockedNotice(providersParsed.error.message);
         }
 
-        if (initialParams.oauthHandoff) {
+        if (initialParams.oauthHandoff && !oauthHandoffConsumedRef.current) {
+          oauthHandoffConsumedRef.current = true;
+          window.history.replaceState({}, '', window.location.pathname || '/');
           const handoffRes = await fetch('/api/auth/oauth/complete', {
             method: 'POST',
             credentials: 'same-origin',
@@ -175,23 +187,47 @@ export default function App() {
           const handoffData = (await handoffRes.json().catch(() => null)) as {
             user?: AuthUser;
             sessionToken?: string;
+            error?: { message?: string };
           } | null;
-          window.history.replaceState({}, '', '/');
           if (active && handoffRes.ok && handoffData?.user) {
+            const nextToken = handoffData.sessionToken ?? null;
+            sessionTokenRef.current = nextToken;
             setAuthUser(handoffData.user);
-            setSessionToken(handoffData.sessionToken ?? null);
-            await loadUserEvaluations(handoffData.sessionToken ?? null);
+            setSessionToken(nextToken);
+            try {
+              localStorage.setItem('reeview_remembered_email', handoffData.user.email);
+            } catch {
+              // Ignore storage restrictions
+            }
+            await loadUserEvaluations(nextToken);
             return;
           }
+          if (active && !handoffRes.ok) {
+            setUnauthView('auth');
+          }
+        } else if (initialParams.authError || initialParams.oauthLinked) {
+          window.history.replaceState({}, '', window.location.pathname || '/');
         }
 
-        const meRes = await fetch('/api/auth/me', { credentials: 'same-origin' });
+        const meHeaders: Record<string, string> = { Accept: 'application/json' };
+        if (sessionTokenRef.current) {
+          meHeaders.Authorization = `Bearer ${sessionTokenRef.current}`;
+        }
+        const meRes = await fetch('/api/auth/me', {
+          credentials: 'same-origin',
+          headers: meHeaders,
+        });
         const meData = (await meRes.json().catch(() => null)) as {
           user?: AuthUser | null;
         } | null;
         if (active && meData?.user) {
           setAuthUser(meData.user);
-          await loadUserEvaluations(null);
+          try {
+            localStorage.setItem('reeview_remembered_email', meData.user.email);
+          } catch {
+            // Ignore storage restrictions
+          }
+          await loadUserEvaluations(sessionTokenRef.current);
         }
       } finally {
         if (active) {
@@ -204,7 +240,8 @@ export default function App() {
     return () => {
       active = false;
     };
-  }, [initialParams.oauthHandoff, loadUserEvaluations]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     return () => {
@@ -215,10 +252,17 @@ export default function App() {
   }, [previewUrl]);
 
   function handleAuthenticated(user: AuthUser, token?: string) {
+    const nextToken = token ?? null;
+    sessionTokenRef.current = nextToken;
     setAuthUser(user);
-    setSessionToken(token ?? null);
+    setSessionToken(nextToken);
     setActiveTab('evaluator');
-    loadUserEvaluations(token ?? null);
+    try {
+      localStorage.setItem('reeview_remembered_email', user.email);
+    } catch {
+      // Ignore storage restrictions
+    }
+    loadUserEvaluations(nextToken);
   }
 
   async function handleLogout() {
@@ -237,6 +281,11 @@ export default function App() {
       });
     } catch {
       // Proceed with local state reset
+    }
+    try {
+      localStorage.removeItem('reeview_remembered_email');
+    } catch {
+      // Ignore storage restrictions
     }
     setAuthUser(null);
     setSessionToken(null);

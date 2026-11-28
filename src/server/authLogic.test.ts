@@ -6,10 +6,12 @@ import {
   generateNumericOtp,
   hashOtpCode,
   hashPassword,
+  isHttpsRequestValues,
   maskEmailAddress,
   normalizeEmailFrom,
   parseSenderNameAndEmail,
   resolveEmailTransportConfig,
+  resolveTrustedOpenerOrigin,
   verifyOtpCode,
   verifyPassword,
 } from './authLogic.ts';
@@ -293,4 +295,119 @@ test('resolveEmailTransportConfig prioritizes Gmail/SMTP and Brevo cleanly over 
   assert.equal(resolveEmailTransportConfig({}), null);
 });
 
+test('resolveTrustedOpenerOrigin allows custom domain and matching applet origins while rejecting untrusted hosts', () => {
+  assert.equal(
+    resolveTrustedOpenerOrigin({
+      candidateOrigin: 'https://reeview.ai.studio',
+      requestOrigin: 'https://ais-dev-izdz6evoejt6daj7gmjh6a-438790275501.asia-east1.run.app',
+      appUrl: 'https://ais-dev-izdz6evoejt6daj7gmjh6a-438790275501.asia-east1.run.app',
+    }),
+    'https://reeview.ai.studio'
+  );
 
+  assert.equal(
+    resolveTrustedOpenerOrigin({
+      candidateOrigin: 'https://ais-pre-izdz6evoejt6daj7gmjh6a-438790275501.asia-east1.run.app',
+      requestOrigin: 'https://ais-dev-izdz6evoejt6daj7gmjh6a-438790275501.asia-east1.run.app',
+      appUrl: 'https://ais-dev-izdz6evoejt6daj7gmjh6a-438790275501.asia-east1.run.app',
+    }),
+    'https://ais-pre-izdz6evoejt6daj7gmjh6a-438790275501.asia-east1.run.app'
+  );
+
+  assert.equal(
+    resolveTrustedOpenerOrigin({
+      candidateOrigin: 'https://evil.example.com',
+      requestOrigin: 'https://ais-dev-izdz6evoejt6daj7gmjh6a-438790275501.asia-east1.run.app',
+      appUrl: 'https://ais-dev-izdz6evoejt6daj7gmjh6a-438790275501.asia-east1.run.app',
+    }),
+    'https://ais-dev-izdz6evoejt6daj7gmjh6a-438790275501.asia-east1.run.app'
+  );
+});
+
+test('isHttpsRequestValues handles proxy proto casing without misclassifying local HTTP', () => {
+  assert.equal(
+    isHttpsRequestValues({ secure: false, forwardedProto: 'HTTPS, http' }),
+    true
+  );
+  assert.equal(
+    isHttpsRequestValues({ secure: false, originHeader: 'https://reeview.ai.studio' }),
+    true
+  );
+  assert.equal(
+    isHttpsRequestValues({ secure: false, forwardedProto: 'http', originHeader: 'http://localhost:3000' }),
+    false
+  );
+});
+
+test('AppDatabase preserves opener_origin on OAuth state and enforces single-use OAuth handoffs', () => {
+  const db = new AppDatabase(':memory:');
+  const user = db.createUser({
+    email: 'googleuser@example.com',
+    emailVerified: true,
+    name: 'Google User',
+  });
+
+  const state = db.createOAuthState({
+    provider: 'google',
+    mode: 'login',
+    userId: null,
+    nonce: 'nonce-1',
+    codeVerifier: 'verifier-1',
+    redirectUri: 'https://ais-dev-test.run.app/api/auth/google/callback',
+    openerOrigin: 'https://reeview.ai.studio',
+  });
+
+  const consumedState = db.consumeOAuthState(state, 'google');
+  assert.equal(consumedState?.opener_origin, 'https://reeview.ai.studio');
+  assert.equal(db.consumeOAuthState(state, 'google'), null);
+
+  const handoffCode = db.createOAuthHandoff(user.id);
+  assert.equal(db.consumeOAuthHandoff(handoffCode), user.id);
+  assert.equal(db.consumeOAuthHandoff(handoffCode), null);
+});
+
+test('AppDatabase oauth_flows claim completes single-use flow and prevents duplicate tab handoff reuse', () => {
+  const db = new AppDatabase(':memory:');
+  const user = db.createUser({
+    email: 'flowuser@example.com',
+    emailVerified: true,
+    name: 'Flow User',
+  });
+
+  const flowId = 'flow-secret-token-123';
+  const state = db.createOAuthState({
+    provider: 'google',
+    mode: 'login',
+    userId: null,
+    nonce: 'nonce-flow',
+    codeVerifier: 'verifier-flow',
+    redirectUri: 'https://ais-dev-test.run.app/api/auth/google/callback',
+    openerOrigin: 'https://reeview.ai.studio',
+    flowId,
+    flowType: 'popup',
+  });
+
+  const consumed = db.consumeOAuthState(state, 'google')!;
+  assert.equal(consumed.flow_type, 'popup');
+  assert.ok(consumed.flow_id_hash);
+  assert.equal(db.isOAuthFlowClaimedByHash(consumed.flow_id_hash!), false);
+
+  const handoffCode = db.createOAuthHandoff(user.id);
+  db.completeOAuthFlowResult({
+    flowIdHash: consumed.flow_id_hash,
+    status: 'success',
+    userId: user.id,
+    handoffCode,
+  });
+
+  const flowStatus = db.getOAuthFlowStatus(flowId);
+  assert.equal(flowStatus?.status, 'success');
+  assert.equal(flowStatus?.claimed, 0);
+
+  // Main tab claims via flowId -> marks claimed=1 AND deletes the unused handoffCode
+  const claimed = db.claimOAuthFlow(flowId);
+  assert.deepEqual(claimed, { userId: user.id, mode: 'login' });
+  assert.equal(db.isOAuthFlowClaimedByHash(consumed.flow_id_hash!), true);
+  assert.equal(db.claimOAuthFlow(flowId), null);
+  assert.equal(db.consumeOAuthHandoff(handoffCode), null);
+});

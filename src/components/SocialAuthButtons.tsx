@@ -1,18 +1,20 @@
 interface SocialAuthButtonsProps {
   onGoogleClick: () => void;
+  onCancelClick?: () => void;
   busyProvider: 'google' | 'password' | null;
   googleLabel?: string;
 }
 
 export function SocialAuthButtons({
   onGoogleClick,
+  onCancelClick,
   busyProvider,
   googleLabel = 'Continue with Google',
 }: SocialAuthButtonsProps) {
   const isBusy = busyProvider !== null;
 
   return (
-    <div>
+    <div className="space-y-2">
       <button
         type="button"
         onClick={onGoogleClick}
@@ -39,6 +41,18 @@ export function SocialAuthButtons({
         </svg>
         <span>{busyProvider === 'google' ? 'Connecting to Google...' : googleLabel}</span>
       </button>
+
+      {busyProvider === 'google' && onCancelClick && (
+        <div className="flex justify-center">
+          <button
+            type="button"
+            onClick={onCancelClick}
+            className="text-xs font-medium text-cyan-300 hover:text-cyan-200 transition-colors cursor-pointer py-1 px-2 rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400"
+          >
+            Cancel Google sign-in
+          </button>
+        </div>
+      )}
     </div>
   );
 }

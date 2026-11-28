@@ -392,4 +392,98 @@ export function resolveEmailTransportConfig(
   return null;
 }
 
+const TRUSTED_EXACT_ORIGINS = new Set([
+  'https://reeview.ai.studio',
+]);
+
+function extractAppletSlug(hostname: string): string | null {
+  const match = hostname.match(/^ais-(?:dev|pre)-([a-z0-9-]+)(?:\.[a-z0-9-]+)*\.run\.app$/i);
+  return match ? match[1].toLowerCase() : null;
+}
+
+export function isTrustedAppOrigin(
+  candidateOrigin: string,
+  context: { requestOrigin?: string | null; appUrl?: string | null }
+): boolean {
+  let parsed: URL;
+  try {
+    parsed = new URL(candidateOrigin);
+  } catch {
+    return false;
+  }
+
+  if (parsed.protocol !== 'https:' && parsed.protocol !== 'http:') {
+    return false;
+  }
+
+  const normalized = parsed.origin;
+  if (TRUSTED_EXACT_ORIGINS.has(normalized)) {
+    return true;
+  }
+
+  if (
+    parsed.protocol === 'http:' &&
+    (parsed.hostname === 'localhost' || parsed.hostname === '127.0.0.1')
+  ) {
+    return true;
+  }
+
+  for (const refUrl of [context.requestOrigin, context.appUrl]) {
+    if (!refUrl) continue;
+    try {
+      const refParsed = new URL(refUrl);
+      if (refParsed.origin === normalized) {
+        return true;
+      }
+      const refSlug = extractAppletSlug(refParsed.hostname);
+      const candSlug = extractAppletSlug(parsed.hostname);
+      if (refSlug && candSlug && refSlug === candSlug && parsed.protocol === 'https:') {
+        return true;
+      }
+    } catch {
+      // Ignore malformed reference URL
+    }
+  }
+
+  return false;
+}
+
+export function resolveTrustedOpenerOrigin(params: {
+  candidateOrigin?: string | null;
+  requestOrigin?: string | null;
+  appUrl?: string | null;
+}): string | null {
+  const candidates = [params.candidateOrigin, params.requestOrigin, params.appUrl];
+  for (const raw of candidates) {
+    if (!raw || typeof raw !== 'string') continue;
+    try {
+      const origin = new URL(raw.trim()).origin;
+      if (
+        isTrustedAppOrigin(origin, {
+          requestOrigin: params.requestOrigin,
+          appUrl: params.appUrl,
+        })
+      ) {
+        return origin;
+      }
+    } catch {
+      // Ignore invalid URL
+    }
+  }
+  return null;
+}
+
+export function isHttpsRequestValues(params: {
+  secure: boolean;
+  forwardedProto?: string | null;
+  forwardedSsl?: string | null;
+  originHeader?: string | null;
+}): boolean {
+  if (params.secure) return true;
+  const proto = params.forwardedProto?.split(',')[0]?.trim().toLowerCase();
+  if (proto === 'https') return true;
+  if (params.forwardedSsl?.trim().toLowerCase() === 'on') return true;
+  if (params.originHeader?.trim().toLowerCase().startsWith('https://')) return true;
+  return false;
+}
 

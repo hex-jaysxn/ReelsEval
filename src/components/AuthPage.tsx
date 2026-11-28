@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from 'react';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
 import { ArrowLeft, ExternalLink, KeyRound, Lock, Mail, RotateCw, ShieldCheck, User } from 'lucide-react';
 import type { AuthProviderAvailability, AuthUser } from '../types/auth.ts';
@@ -48,7 +48,13 @@ export function AuthPage({
   const reduced = useReducedMotion();
   const [mode, setMode] = useState<AuthMode>(initialResetToken ? 'reset' : initialMode);
   const [name, setName] = useState('');
-  const [email, setEmail] = useState('');
+  const [email, setEmail] = useState(() => {
+    try {
+      return localStorage.getItem('reeview_remembered_email') || '';
+    } catch {
+      return '';
+    }
+  });
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [resetToken, setResetToken] = useState(initialResetToken || '');
@@ -58,6 +64,7 @@ export function AuthPage({
   const [resendCountdown, setResendCountdown] = useState(0);
 
   const [busyProvider, setBusyProvider] = useState<'google' | 'password' | null>(null);
+  const cancelOAuthRef = useRef<(() => void) | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(
     initialAuthError || proxyBlockedNotice || null
   );
@@ -65,6 +72,13 @@ export function AuthPage({
     Boolean(!initialAuthError && proxyBlockedNotice)
   );
   const [infoMessage, setInfoMessage] = useState<string | null>(null);
+
+  useEffect(() => {
+    return () => {
+      cancelOAuthRef.current?.();
+      cancelOAuthRef.current = null;
+    };
+  }, []);
 
   useEffect(() => {
     if (!initialAuthError && proxyBlockedNotice) {
@@ -106,7 +120,15 @@ export function AuthPage({
     setInfoMessage(null);
   }
 
+  function handleCancelOAuth() {
+    cancelOAuthRef.current?.();
+    cancelOAuthRef.current = null;
+    setBusyProvider(null);
+  }
+
   async function handleOAuthSignIn(provider: 'google') {
+    cancelOAuthRef.current?.();
+    cancelOAuthRef.current = null;
     setErrorMessage(null);
     setIsProxyError(false);
     setInfoMessage(null);
@@ -116,14 +138,23 @@ export function AuthPage({
       provider,
       mode: 'login',
       sessionToken: null,
+      onCancelReady: (cancelFn) => {
+        cancelOAuthRef.current = cancelFn;
+      },
       onSuccess: async ({ user, sessionToken }) => {
+        cancelOAuthRef.current = null;
         if (user) {
           setBusyProvider(null);
           onAuthenticated(user, sessionToken);
           return;
         }
         try {
-          const res = await fetch('/api/auth/me', { credentials: 'same-origin' });
+          const headers: Record<string, string> = { Accept: 'application/json' };
+          if (sessionToken) headers.Authorization = `Bearer ${sessionToken}`;
+          const res = await fetch('/api/auth/me', {
+            credentials: 'same-origin',
+            headers,
+          });
           const data = (await res.json().catch(() => null)) as { user?: AuthUser | null } | null;
           setBusyProvider(null);
           if (data?.user) {
@@ -137,6 +168,7 @@ export function AuthPage({
         }
       },
       onError: (msg) => {
+        cancelOAuthRef.current = null;
         setBusyProvider(null);
         setErrorMessage(msg);
       },
@@ -605,6 +637,7 @@ export function AuthPage({
                     <>
                       <SocialAuthButtons
                         onGoogleClick={() => handleOAuthSignIn('google')}
+                        onCancelClick={handleCancelOAuth}
                         busyProvider={busyProvider}
                       />
 

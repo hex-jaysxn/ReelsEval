@@ -46,6 +46,21 @@ interface DbOAuthStateRow {
   nonce: string;
   code_verifier: string;
   redirect_uri: string;
+  opener_origin: string | null;
+  flow_id_hash: string | null;
+  flow_type: 'popup' | 'redirect';
+  expires_at: string;
+}
+
+export interface DbOAuthFlowRow {
+  flow_id_hash: string;
+  mode: 'login' | 'link';
+  flow_type: 'popup' | 'redirect';
+  status: 'pending' | 'success' | 'error';
+  user_id: string | null;
+  handoff_code_hash: string | null;
+  error_message: string | null;
+  claimed: number;
   expires_at: string;
 }
 
@@ -123,6 +138,21 @@ export class AppDatabase {
         nonce TEXT NOT NULL,
         code_verifier TEXT NOT NULL,
         redirect_uri TEXT NOT NULL,
+        opener_origin TEXT,
+        flow_id_hash TEXT,
+        flow_type TEXT NOT NULL DEFAULT 'popup' CHECK (flow_type IN ('popup', 'redirect')),
+        expires_at TEXT NOT NULL
+      );
+
+      CREATE TABLE IF NOT EXISTS oauth_flows (
+        flow_id_hash TEXT PRIMARY KEY,
+        mode TEXT NOT NULL CHECK (mode IN ('login', 'link')),
+        flow_type TEXT NOT NULL DEFAULT 'popup' CHECK (flow_type IN ('popup', 'redirect')),
+        status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'success', 'error')),
+        user_id TEXT,
+        handoff_code_hash TEXT,
+        error_message TEXT,
+        claimed INTEGER NOT NULL DEFAULT 0,
         expires_at TEXT NOT NULL
       );
 
@@ -172,6 +202,19 @@ export class AppDatabase {
       CREATE INDEX IF NOT EXISTS idx_evaluations_user_created
         ON evaluations(user_id, created_at DESC);
     `);
+
+    const stateCols = this.db
+      .prepare(`PRAGMA table_info(oauth_states)`)
+      .all() as { name: string }[];
+    if (!stateCols.some((col) => col.name === 'opener_origin')) {
+      this.db.exec(`ALTER TABLE oauth_states ADD COLUMN opener_origin TEXT;`);
+    }
+    if (!stateCols.some((col) => col.name === 'flow_id_hash')) {
+      this.db.exec(`ALTER TABLE oauth_states ADD COLUMN flow_id_hash TEXT;`);
+    }
+    if (!stateCols.some((col) => col.name === 'flow_type')) {
+      this.db.exec(`ALTER TABLE oauth_states ADD COLUMN flow_type TEXT NOT NULL DEFAULT 'popup';`);
+    }
   }
 
   getUserById(userId: string): DbUserRow | null {
@@ -366,7 +409,7 @@ export class AppDatabase {
     };
   }
 
-  createSession(userId: string, ttlDays = 7): string {
+  createSession(userId: string, ttlDays = 30): string {
     const rawToken = generateOpaqueToken(32);
     const tokenHash = hashToken(rawToken);
     const now = new Date();
@@ -409,23 +452,28 @@ export class AppDatabase {
     nonce: string;
     codeVerifier: string;
     redirectUri: string;
+    openerOrigin?: string | null;
+    flowId?: string | null;
+    flowType?: 'popup' | 'redirect';
     ttlMinutes?: number;
   }): string {
     const state = generateOpaqueToken(24);
     const expiresAt = new Date(
       Date.now() + (params.ttlMinutes ?? 10) * 60 * 1000
     ).toISOString();
+    const flowIdHash = params.flowId ? hashToken(params.flowId) : null;
+    const flowType = params.flowType === 'redirect' ? 'redirect' : 'popup';
 
-    // Opportunistic cleanup of expired OAuth states
-    this.db
-      .prepare(`DELETE FROM oauth_states WHERE expires_at <= ?`)
-      .run(new Date().toISOString());
+    // Opportunistic cleanup of expired OAuth states and flows
+    const nowIso = new Date().toISOString();
+    this.db.prepare(`DELETE FROM oauth_states WHERE expires_at <= ?`).run(nowIso);
+    this.db.prepare(`DELETE FROM oauth_flows WHERE expires_at <= ?`).run(nowIso);
 
     this.db
       .prepare(
         `INSERT INTO oauth_states
-         (state, provider, mode, user_id, nonce, code_verifier, redirect_uri, expires_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+         (state, provider, mode, user_id, nonce, code_verifier, redirect_uri, opener_origin, flow_id_hash, flow_type, expires_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
       )
       .run(
         state,
@@ -435,8 +483,21 @@ export class AppDatabase {
         params.nonce,
         params.codeVerifier,
         params.redirectUri,
+        params.openerOrigin ?? null,
+        flowIdHash,
+        flowType,
         expiresAt
       );
+
+    if (flowIdHash) {
+      this.db
+        .prepare(
+          `INSERT OR REPLACE INTO oauth_flows
+           (flow_id_hash, mode, flow_type, status, user_id, handoff_code_hash, error_message, claimed, expires_at)
+           VALUES (?, ?, ?, 'pending', NULL, NULL, NULL, 0, ?)`
+        )
+        .run(flowIdHash, params.mode, flowType, expiresAt);
+    }
 
     return state;
   }
@@ -460,9 +521,102 @@ export class AppDatabase {
     return row;
   }
 
+  completeOAuthFlowResult(params: {
+    flowIdHash: string | null | undefined;
+    status: 'success' | 'error';
+    userId?: string | null;
+    handoffCode?: string | null;
+    errorMessage?: string | null;
+  }): void {
+    if (!params.flowIdHash) return;
+    const expiresAt = new Date(Date.now() + 3 * 60 * 1000).toISOString();
+    const handoffHash = params.handoffCode ? hashToken(params.handoffCode) : null;
+    this.db
+      .prepare(
+        `UPDATE oauth_flows
+         SET status = ?, user_id = ?, handoff_code_hash = ?, error_message = ?, expires_at = ?
+         WHERE flow_id_hash = ?`
+      )
+      .run(
+        params.status,
+        params.userId ?? null,
+        handoffHash,
+        params.errorMessage ?? null,
+        expiresAt,
+        params.flowIdHash
+      );
+  }
+
+  getOAuthFlowStatus(rawFlowId: string): DbOAuthFlowRow | null {
+    if (!rawFlowId) return null;
+    const flowIdHash = hashToken(rawFlowId);
+    const row = this.db
+      .prepare(`SELECT * FROM oauth_flows WHERE flow_id_hash = ?`)
+      .get(flowIdHash) as DbOAuthFlowRow | undefined;
+    if (!row) return null;
+    if (new Date(row.expires_at).getTime() <= Date.now()) {
+      this.db.prepare(`DELETE FROM oauth_flows WHERE flow_id_hash = ?`).run(flowIdHash);
+      return null;
+    }
+    return row;
+  }
+
+  isOAuthFlowClaimedByHash(flowIdHash: string): boolean {
+    if (!flowIdHash) return false;
+    const row = this.db
+      .prepare(`SELECT claimed, expires_at FROM oauth_flows WHERE flow_id_hash = ?`)
+      .get(flowIdHash) as { claimed: number; expires_at: string } | undefined;
+    if (!row) return false;
+    if (new Date(row.expires_at).getTime() <= Date.now()) return false;
+    return row.claimed === 1;
+  }
+
+  markOAuthFlowClaimed(rawFlowId: string): void {
+    if (!rawFlowId) return;
+    this.db
+      .prepare(`UPDATE oauth_flows SET claimed = 1 WHERE flow_id_hash = ?`)
+      .run(hashToken(rawFlowId));
+  }
+
+  claimOAuthFlow(rawFlowId: string): {
+    userId: string;
+    mode: 'login' | 'link';
+  } | null {
+    if (!rawFlowId) return null;
+    const flowIdHash = hashToken(rawFlowId);
+    const row = this.db
+      .prepare(`SELECT * FROM oauth_flows WHERE flow_id_hash = ?`)
+      .get(flowIdHash) as DbOAuthFlowRow | undefined;
+
+    if (!row || row.status !== 'success' || row.claimed !== 0 || !row.user_id) {
+      return null;
+    }
+    if (new Date(row.expires_at).getTime() <= Date.now()) {
+      this.db.prepare(`DELETE FROM oauth_flows WHERE flow_id_hash = ?`).run(flowIdHash);
+      return null;
+    }
+
+    const updated = this.db
+      .prepare(
+        `UPDATE oauth_flows SET claimed = 1 WHERE flow_id_hash = ? AND claimed = 0 AND status = 'success'`
+      )
+      .run(flowIdHash);
+    if (Number(updated.changes) === 0) {
+      return null;
+    }
+
+    if (row.handoff_code_hash) {
+      this.db
+        .prepare(`DELETE FROM oauth_handoffs WHERE code_hash = ?`)
+        .run(row.handoff_code_hash);
+    }
+
+    return { userId: row.user_id, mode: row.mode };
+  }
+
   createOAuthHandoff(userId: string): string {
     const rawCode = generateOpaqueToken(24);
-    const expiresAt = new Date(Date.now() + 60 * 1000).toISOString();
+    const expiresAt = new Date(Date.now() + 90 * 1000).toISOString();
     this.db
       .prepare(`DELETE FROM oauth_handoffs WHERE expires_at <= ?`)
       .run(new Date().toISOString());
@@ -484,6 +638,9 @@ export class AppDatabase {
     if (new Date(row.expires_at).getTime() <= Date.now()) {
       return null;
     }
+    this.db
+      .prepare(`UPDATE oauth_flows SET claimed = 1 WHERE handoff_code_hash = ?`)
+      .run(codeHash);
     return row.user_id;
   }
 

@@ -11,6 +11,7 @@ import {
   normalizeEmailFrom,
   parseSenderNameAndEmail,
   resolveEmailTransportConfig,
+  resolveTrustedOpenerOrigin,
 } from './authLogic.ts';
 import type { AppDatabase, OAuthProviderName } from './db.ts';
 
@@ -19,12 +20,25 @@ const GOOGLE_JWKS = createRemoteJWKSet(new URL('https://www.googleapis.com/oauth
 export class OAuthConfigError extends Error {
   statusCode: number;
   code: string;
+  openerOrigin?: string | null;
+  flowIdHash?: string | null;
+  flowType?: 'popup' | 'redirect';
 
-  constructor(message: string, statusCode = 503, code = 'OAUTH_NOT_CONFIGURED') {
+  constructor(
+    message: string,
+    statusCode = 503,
+    code = 'OAUTH_NOT_CONFIGURED',
+    openerOrigin?: string | null,
+    flowIdHash?: string | null,
+    flowType?: 'popup' | 'redirect'
+  ) {
     super(message);
     this.name = 'OAuthConfigError';
     this.statusCode = statusCode;
     this.code = code;
+    this.openerOrigin = openerOrigin ?? null;
+    this.flowIdHash = flowIdHash ?? null;
+    this.flowType = flowType ?? 'popup';
   }
 }
 
@@ -69,12 +83,27 @@ export function getAuthProviderAvailability(
   };
 }
 
+export function getRequestOrigin(req: express.Request): string {
+  const forwardedProto = (req.headers['x-forwarded-proto'] as string | undefined)
+    ?.split(',')[0]
+    ?.trim()
+    ?.toLowerCase();
+  const proto = forwardedProto || (req.secure ? 'https' : 'http');
+  const forwardedHost = (req.headers['x-forwarded-host'] as string | undefined)
+    ?.split(',')[0]
+    ?.trim();
+  const host = forwardedHost || req.headers.host || 'localhost:3000';
+  return `${proto}://${host}`;
+}
+
 export function buildGoogleAuthUrl(params: {
   req: express.Request;
   db: AppDatabase;
   mode: 'login' | 'link';
   sessionUserId: string | null;
-}): string {
+  candidateOpenerOrigin?: string | null;
+  flowType?: 'popup' | 'redirect';
+}): { url: string; callbackOrigin: string; flowId: string } {
   const clientId = process.env.GOOGLE_CLIENT_ID?.trim();
   const clientSecret = process.env.GOOGLE_CLIENT_SECRET?.trim();
   if (!clientId || !clientSecret) {
@@ -85,9 +114,18 @@ export function buildGoogleAuthUrl(params: {
 
   const baseUrl = getAppBaseUrl(params.req);
   const redirectUri = `${baseUrl}/api/auth/google/callback`;
+  const callbackOrigin = new URL(redirectUri).origin;
+  const openerOrigin = resolveTrustedOpenerOrigin({
+    candidateOrigin: params.candidateOpenerOrigin || (params.req.headers.origin as string | undefined),
+    requestOrigin: getRequestOrigin(params.req),
+    appUrl: process.env.APP_URL?.trim() || null,
+  });
+
   const nonce = generateOpaqueToken(16);
   const codeVerifier = generateOpaqueToken(32);
   const codeChallenge = generatePkceChallenge(codeVerifier);
+  const flowId = generateOpaqueToken(24);
+  const flowType = params.flowType === 'redirect' ? 'redirect' : 'popup';
 
   const state = params.db.createOAuthState({
     provider: 'google',
@@ -96,6 +134,9 @@ export function buildGoogleAuthUrl(params: {
     nonce,
     codeVerifier,
     redirectUri,
+    openerOrigin,
+    flowId,
+    flowType,
   });
 
   const query = new URLSearchParams({
@@ -110,14 +151,24 @@ export function buildGoogleAuthUrl(params: {
     prompt: 'select_account',
   });
 
-  return `https://accounts.google.com/o/oauth2/v2/auth?${query.toString()}`;
+  return {
+    url: `https://accounts.google.com/o/oauth2/v2/auth?${query.toString()}`,
+    callbackOrigin,
+    flowId,
+  };
 }
 
 export async function handleGoogleCallback(params: {
   code: string;
   state: string;
   db: AppDatabase;
-}): Promise<{ userId: string; mode: 'login' | 'link' }> {
+}): Promise<{
+  userId: string;
+  mode: 'login' | 'link';
+  openerOrigin: string | null;
+  flowIdHash: string | null;
+  flowType: 'popup' | 'redirect';
+}> {
   const clientId = process.env.GOOGLE_CLIENT_ID?.trim();
   const clientSecret = process.env.GOOGLE_CLIENT_SECRET?.trim();
   if (!clientId || !clientSecret) {
@@ -132,6 +183,10 @@ export async function handleGoogleCallback(params: {
       'INVALID_OAUTH_STATE'
     );
   }
+
+  const openerOrigin = stateRecord.opener_origin ?? null;
+  const flowIdHash = stateRecord.flow_id_hash ?? null;
+  const flowType = stateRecord.flow_type === 'redirect' ? 'redirect' : 'popup';
 
   const tokenRes = await fetch('https://oauth2.googleapis.com/token', {
     method: 'POST',
@@ -156,7 +211,10 @@ export async function handleGoogleCallback(params: {
     throw new OAuthConfigError(
       tokenData?.error_description || 'Google token exchange failed.',
       401,
-      'OAUTH_EXCHANGE_FAILED'
+      'OAUTH_EXCHANGE_FAILED',
+      openerOrigin,
+      flowIdHash,
+      flowType
     );
   }
 
@@ -166,7 +224,14 @@ export async function handleGoogleCallback(params: {
   });
 
   if (payload.nonce !== stateRecord.nonce) {
-    throw new OAuthConfigError('Google ID token nonce mismatch.', 401, 'INVALID_NONCE');
+    throw new OAuthConfigError(
+      'Google ID token nonce mismatch.',
+      401,
+      'INVALID_NONCE',
+      openerOrigin,
+      flowIdHash,
+      flowType
+    );
   }
 
   const sub = typeof payload.sub === 'string' ? payload.sub : '';
@@ -179,21 +244,39 @@ export async function handleGoogleCallback(params: {
     throw new OAuthConfigError(
       'Google profile did not include required account identifiers.',
       400,
-      'MISSING_PROFILE_CLAIMS'
+      'MISSING_PROFILE_CLAIMS',
+      openerOrigin,
+      flowIdHash,
+      flowType
     );
   }
 
-  return completeOAuthIdentityResolution({
-    db: params.db,
-    provider: 'google',
-    providerUserId: sub,
-    email,
-    emailVerified,
-    name: name || email.split('@')[0],
-    avatarUrl: picture,
-    mode: stateRecord.mode,
-    sessionUserId: stateRecord.user_id,
-  });
+  try {
+    const resolved = completeOAuthIdentityResolution({
+      db: params.db,
+      provider: 'google',
+      providerUserId: sub,
+      email,
+      emailVerified,
+      name: name || email.split('@')[0],
+      avatarUrl: picture,
+      mode: stateRecord.mode,
+      sessionUserId: stateRecord.user_id,
+    });
+    return {
+      ...resolved,
+      openerOrigin,
+      flowIdHash,
+      flowType,
+    };
+  } catch (err) {
+    if (err instanceof OAuthConfigError) {
+      if (!err.openerOrigin) err.openerOrigin = openerOrigin;
+      if (!err.flowIdHash) err.flowIdHash = flowIdHash;
+      if (!err.flowType) err.flowType = flowType;
+    }
+    throw err;
+  }
 }
 
 function completeOAuthIdentityResolution(params: {
@@ -491,6 +574,9 @@ export function renderOAuthPopupHtml(params: {
   mode: 'login' | 'link';
   handoffCode?: string;
   errorMessage?: string;
+  targetOrigin?: string | null;
+  flowIdHash?: string | null;
+  flowType?: 'popup' | 'redirect';
 }): string {
   const payload = JSON.stringify({
     type: params.success ? 'OAUTH_AUTH_SUCCESS' : 'OAUTH_AUTH_ERROR',
@@ -500,33 +586,170 @@ export function renderOAuthPopupHtml(params: {
     error: params.errorMessage || null,
   });
 
+  const safeTargetOrigin = JSON.stringify(params.targetOrigin || null);
+  const safeFlowHash = JSON.stringify(params.flowIdHash || null);
+  const safeFlowType = JSON.stringify(params.flowType === 'redirect' ? 'redirect' : 'popup');
+  const safeBase = params.targetOrigin || '';
+  const fallbackHref = params.errorMessage
+    ? `${safeBase}/?authError=${encodeURIComponent(params.errorMessage)}`
+    : params.mode === 'link'
+      ? `${safeBase}/?oauthLinked=${encodeURIComponent(params.provider)}`
+      : params.handoffCode
+        ? `${safeBase}/?oauthHandoff=${encodeURIComponent(params.handoffCode)}`
+        : `${safeBase}/`;
+
   return `<!doctype html>
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Authentication Complete</title>
   </head>
-  <body style="font-family: system-ui, sans-serif; padding: 24px; color: #0f172a;">
+  <body style="margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;background:#070b28;color:#f8fafc;font-family:system-ui,-apple-system,sans-serif;padding:24px;text-align:center;">
+    <div style="max-width:380px;">
+      <p id="rv-oauth-title" style="font-size:17px;font-weight:700;margin:0 0 8px;">${
+        params.success
+          ? 'Google sign-in complete'
+          : 'Google sign-in could not complete'
+      }</p>
+      <p id="rv-oauth-desc" style="font-size:13px;color:#cbd5e1;margin:0 0 18px;line-height:1.5;">${
+        params.success
+          ? 'Returning you to your main ReeView tab...'
+          : escapeHtml(params.errorMessage || 'Please return to ReeView and try again.')
+      }</p>
+      <div style="display:flex;flex-direction:column;gap:10px;align-items:center;">
+        <button id="rv-return-btn" type="button" style="display:none;padding:10px 18px;border-radius:10px;border:none;background:#22d3ee;color:#070b28;font-size:13px;font-weight:700;cursor:pointer;">Back to Main ReeView Tab</button>
+        <a id="rv-fallback-link" href="${escapeHtml(fallbackHref)}" style="display:inline-block;padding:10px 18px;border-radius:10px;background:#22d3ee;color:#070b28;font-size:13px;font-weight:700;text-decoration:none;">Open ReeView</a>
+      </div>
+    </div>
     <script>
       (function () {
         var msg = ${payload};
-        if (window.opener) {
-          window.opener.postMessage(msg, window.location.origin);
-          window.close();
-        } else {
-          window.location.href = msg.error
-            ? '/?authError=' + encodeURIComponent(msg.error)
+        var explicitOrigin = ${safeTargetOrigin};
+        var flowHash = ${safeFlowHash};
+        var flowType = ${safeFlowType};
+        var postTarget = explicitOrigin || window.location.origin;
+        var deliveredToOpener = false;
+        var acked = false;
+
+        var fallbackUrl = msg.error
+          ? (explicitOrigin || '') + '/?authError=' + encodeURIComponent(msg.error)
+          : msg.mode === 'link'
+            ? (explicitOrigin || '') + '/?oauthLinked=' + encodeURIComponent(msg.provider)
             : msg.handoffCode
-              ? '/?oauthHandoff=' + encodeURIComponent(msg.handoffCode)
-              : '/';
+              ? (explicitOrigin || '') + '/?oauthHandoff=' + encodeURIComponent(msg.handoffCode)
+              : (explicitOrigin || '') + '/';
+
+        if (flowType === 'redirect') {
+          window.location.replace(fallbackUrl);
+          return;
         }
+
+        function showMainTabReadyState() {
+          var titleEl = document.getElementById('rv-oauth-title');
+          var descEl = document.getElementById('rv-oauth-desc');
+          var returnBtn = document.getElementById('rv-return-btn');
+          var fallbackLink = document.getElementById('rv-fallback-link');
+          if (titleEl) {
+            titleEl.textContent = msg.error
+              ? 'Return to your main ReeView tab'
+              : 'You are signed in on your main ReeView tab';
+          }
+          if (descEl) {
+            descEl.textContent = msg.error
+              ? msg.error
+              : 'Your Google account is saved in your main ReeView tab. You can close this window or switch back to ReeView.';
+          }
+          if (returnBtn) {
+            returnBtn.style.display = 'inline-block';
+            returnBtn.onclick = function () {
+              try { if (window.opener && !window.opener.closed) window.opener.focus(); } catch (e) {}
+              try { window.close(); } catch (e) {}
+            };
+          }
+          if (fallbackLink) {
+            fallbackLink.textContent = 'Continue in This Tab Instead';
+            fallbackLink.style.background = 'transparent';
+            fallbackLink.style.color = '#94a3b8';
+            fallbackLink.style.border = '1px solid rgba(148,163,184,0.35)';
+            fallbackLink.href = (explicitOrigin || '') + '/';
+          }
+        }
+
+        try {
+          if (typeof BroadcastChannel !== 'undefined') {
+            var channel = new BroadcastChannel('reeview_oauth_channel');
+            channel.onmessage = function (ev) {
+              if (ev && ev.data && ev.data.type === 'OAUTH_AUTH_ACK') {
+                acked = true;
+                try { window.close(); } catch (e) {}
+              }
+            };
+            channel.postMessage(msg);
+          }
+        } catch (e) {}
+
+        try {
+          if (window.opener && !window.opener.closed) {
+            window.opener.postMessage(msg, postTarget);
+            deliveredToOpener = true;
+            try { window.opener.focus(); } catch (e) {}
+          }
+        } catch (e) {}
+
+        if (deliveredToOpener) {
+          try { window.close(); } catch (e) {}
+        }
+
+        var startedAt = Date.now();
+        var checkInterval = window.setInterval(function () {
+          if (window.closed) {
+            window.clearInterval(checkInterval);
+            return;
+          }
+
+          if (acked) {
+            window.clearInterval(checkInterval);
+            try { if (window.opener && !window.opener.closed) window.opener.focus(); } catch (e) {}
+            try { window.close(); } catch (e) {}
+            showMainTabReadyState();
+            return;
+          }
+
+          if (flowHash) {
+            fetch('/api/auth/oauth/flow-status?flowHash=' + encodeURIComponent(flowHash), {
+              credentials: 'same-origin'
+            })
+              .then(function (r) { return r.ok ? r.json() : null; })
+              .then(function (data) {
+                if (data && data.claimed) {
+                  acked = true;
+                  window.clearInterval(checkInterval);
+                  try { if (window.opener && !window.opener.closed) window.opener.focus(); } catch (e) {}
+                  try { window.close(); } catch (e) {}
+                  showMainTabReadyState();
+                } else if (Date.now() - startedAt >= 1800) {
+                  window.clearInterval(checkInterval);
+                  window.location.replace(fallbackUrl);
+                }
+              })
+              .catch(function () {
+                if (Date.now() - startedAt >= 1800) {
+                  window.clearInterval(checkInterval);
+                  window.location.replace(fallbackUrl);
+                }
+              });
+          } else if (Date.now() - startedAt >= (deliveredToOpener ? 1000 : 350)) {
+            window.clearInterval(checkInterval);
+            if (!deliveredToOpener) {
+              window.location.replace(fallbackUrl);
+            } else {
+              showMainTabReadyState();
+            }
+          }
+        }, 250);
       })();
     </script>
-    <p>${
-      params.success
-        ? 'Authentication successful. You can close this window.'
-        : 'Authentication did not complete. You can close this window and retry.'
-    }</p>
   </body>
 </html>`;
 }

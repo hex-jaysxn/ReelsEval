@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { AnimatePresence } from 'motion/react';
 import {
   KeyRound,
@@ -33,8 +33,16 @@ export function AccountSettingsView({
   const [confirmPassword, setConfirmPassword] = useState('');
 
   const [busyAction, setBusyAction] = useState<string | null>(null);
+  const cancelOAuthRef = useRef<(() => void) | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+
+  useEffect(() => {
+    return () => {
+      cancelOAuthRef.current?.();
+      cancelOAuthRef.current = null;
+    };
+  }, []);
 
   const googleConnection = user.connectedProviders.find((p) => p.provider === 'google');
 
@@ -127,6 +135,8 @@ export function AccountSettingsView({
   }
 
   async function handleConnectProvider(provider: 'google') {
+    cancelOAuthRef.current?.();
+    cancelOAuthRef.current = null;
     setErrorMessage(null);
     setSuccessMessage(null);
     setBusyAction(`connect_${provider}`);
@@ -135,12 +145,21 @@ export function AccountSettingsView({
       provider,
       mode: 'link',
       sessionToken,
-      onSuccess: async () => {
-        await refreshProfile();
+      onCancelReady: (cancelFn) => {
+        cancelOAuthRef.current = cancelFn;
+      },
+      onSuccess: async ({ user: updatedUser }) => {
+        cancelOAuthRef.current = null;
+        if (updatedUser) {
+          onUserUpdated(updatedUser);
+        } else {
+          await refreshProfile();
+        }
         setBusyAction(null);
         setSuccessMessage('Google account connected.');
       },
       onError: (msg) => {
+        cancelOAuthRef.current = null;
         setBusyAction(null);
         setErrorMessage(msg);
       },
